@@ -6,7 +6,9 @@ WORKDIR /backend
 RUN apt-get update && apt-get install -y \
     gcc \
     python3-dev \
+    docker.io \
     && rm -rf /var/lib/apt/lists/*
+
     
 # Copy files
 COPY requirements.txt .

@@ -1,6 +1,6 @@
-from typing import Literal
+from typing import Literal, List, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, HttpUrl
 
 
 class LatestBlockResponse(BaseModel):
@@ -32,3 +32,16 @@ class VerificationInfoResponse(BaseModel):
         ..., description="Verification status"
     )
     verifiedAt: str = Field(None, description="Verification date")
+
+class ScorecardRequest(BaseModel):
+    """Request model for scorecard data."""
+    org: str = Field(..., min_length=1, max_length=50, description="GitHub organization name")
+    repo: str = Field(..., min_length=1, max_length=100, description="GitHub repository name")
+
+
+class ScorecardResponse(BaseModel):
+    repo_info: str
+    source: str
+    score: float
+    date: str
+    checks: List[dict]
