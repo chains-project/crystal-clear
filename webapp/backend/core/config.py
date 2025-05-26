@@ -20,6 +20,9 @@ class Settings(BaseSettings):
     # Allium API Key
     allium_api_key: str
 
+    # Github Token
+    github_token: str
+
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"
@@ -31,6 +34,7 @@ class Settings(BaseSettings):
             "api_port": "API_PORT",
             "log_level": "LOG_LEVEL",
             "allium_api_key": "ALLIUM_API_KEY",
+            "github_token": "GITHUB_TOKEN",
         }
 
 

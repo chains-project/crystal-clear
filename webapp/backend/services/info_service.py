@@ -2,6 +2,8 @@ from loguru import logger
 from web3 import Web3
 from typing import Dict, Optional
 import requests
+import json
+import subprocess
 
 from sqlmodel import Session
 
@@ -102,3 +104,70 @@ def get_verification_data(address: str) -> Optional[Dict[str, str]]:
     except Exception as e:
         logger.error(f"Error fetching verification data: {e}")
         raise InternalServerError(f"Failed to get verification data: {str(e)}") from e
+
+def get_scorecard_data(org: str, repo: str) -> Optional[Dict]:
+    """
+    Run OpenSSF Scorecard on the given GitHub repo.(We only support GitHub for now)
+
+    Args:
+        repo_url: GitHub repository URL (e.g., https://github.com/org/repo)
+
+    Returns:
+        Scorecard JSON result
+
+        """
+
+    path = f"{org}/{repo}"
+
+    try:
+
+        api_url = f"https://api.securityscorecards.dev/projects/github.com/{path}"
+
+        logger.info(f"Checking Scorecard API: {api_url}")
+        response = requests.get(api_url)
+        logger.info(f"status code: {response.status_code}")
+        
+        if response.status_code == 200:
+            logger.info("Scorecard data found via public API.")
+            return {
+                "source": "api",
+                "repo": path,
+                "raw": response.json()
+            }
+
+        logger.warning(f"Scorecard not found via public API for {path}. Falling back to Docker...")
+
+        repo_url = f"github.com/{path}"
+
+        command = [
+            "docker", "run", "--rm",
+            "-e", f"GITHUB_AUTH_TOKEN={settings.github_token}",
+            "gcr.io/openssf/scorecard:stable",
+            f"--repo={repo_url}",
+            "--format=json"
+        ]
+        result = subprocess.run(command, capture_output=True, text=True)
+        if result.returncode != 0:
+            logger.error(f"Scorecard Docker run failed: {result.stderr}")
+            raise InternalServerError("Scorecard analysis failed.")
+
+        return {
+            "source": "docker",
+            "repo": path,
+            "raw": json.loads(result.stdout)
+        }
+    except InputValidationError as e:
+        logger.error(f"Input validation error: {e}")
+        raise e
+    except requests.RequestException as e:
+        logger.error(f"Scorecard API request error: {e}")
+        raise InternalServerError("Failed to reach Scorecard public API.")
+    except subprocess.SubprocessError as e:
+        logger.error(f"Subprocess error: {e}")
+        raise InternalServerError("Failed to run Scorecard subprocess.")
+    except json.JSONDecodeError as e:
+        logger.error(f"JSON parsing error: {e}")
+        raise InternalServerError("Failed to parse Scorecard output.")
+    except Exception as e:
+        logger.error(f"Unexpected Scorecard error: {e}")
+        raise InternalServerError("Unexpected error during Scorecard analysis.")

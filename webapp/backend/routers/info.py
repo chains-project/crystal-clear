@@ -7,13 +7,18 @@ from schemas.info import (
     LatestBlockResponse,
     DeploymentInfoResponse,
     VerificationInfoResponse,
+    ScorecardResponse,
 )
 from schemas.response import ErrorResponse
+from schemas.info import ScorecardRequest
 from services.info_service import (
     get_latest_block_number,
     get_deployment_data,
     get_verification_data,
+    get_scorecard_data,
 )
+
+
 
 router = APIRouter(
     prefix="/info",
@@ -108,4 +113,44 @@ async def get_contract_info(
         address=data["address"],
         verfication=mapping[data["match"]],
         verifiedAt=data["verifiedAt"],
+    )
+
+@router.post(
+    "/reposcore",
+    status_code=status.HTTP_200_OK,
+    response_model=ScorecardResponse,
+    responses={
+        500: {
+            "description": "Internal server error",
+            "model": ErrorResponse,
+        },
+        422: {
+            "description": "Input validation error",
+            "model": ErrorResponse,
+        },
+        404: {
+            "description": "Scorecard data not found",
+            "model": ErrorResponse,
+        },
+    },
+    summary="Get scorecard data",
+    description="Fetch scorecard data for a given repository.",
+)
+async def get_scorecard_info(
+    request: ScorecardRequest,
+    ):
+    """
+    Get scorecard data for a given repository.
+    """
+    scorecard_data = get_scorecard_data(request.org, request.repo)
+
+    source = "public_api" if scorecard_data["source"] == "api" else "scorecard_docker"
+    org_repo = scorecard_data["repo"]
+
+    return ScorecardResponse(
+        repo_info=org_repo,
+        source=source,
+        score=scorecard_data["raw"]["score"],
+        date=scorecard_data["raw"]["date"],
+        checks=scorecard_data["raw"]["checks"],
     )
