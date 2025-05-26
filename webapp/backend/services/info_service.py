@@ -10,6 +10,7 @@ from sqlmodel import Session
 from core.config import settings
 from core.exceptions import InternalServerError, NotFoundError, InputValidationError
 from core.metadata import get_deployment
+from core.proxy import detect_delegatecall_and_address
 
 import crud.deployment
 from models.deployment import DeploymentCreate
@@ -171,3 +172,32 @@ def get_scorecard_data(org: str, repo: str) -> Optional[Dict]:
     except Exception as e:
         logger.error(f"Unexpected Scorecard error: {e}")
         raise InternalServerError("Unexpected error during Scorecard analysis.")
+    
+def get_proxy_data(address: str) -> Optional[Dict[str, str]]:
+    """
+    Get proxy information for a given contract address.
+
+    Args:
+        address: Ethereum contract address
+
+    Returns:
+        Proxy information
+    """
+    try:
+        # check if address is valid for ethereum
+        if not Web3.is_address(address):
+            raise InputValidationError(f"Invalid Ethereum address: {address}")
+        
+        proxy_type, message, all_lines = detect_delegatecall_and_address(address, settings.eth_node_url)
+
+        return {
+            "address": address,
+            "type": proxy_type,
+            "message": message
+        }
+    except InputValidationError as e:
+        logger.error(f"Error: {e}")
+        raise e
+    except Exception as e:
+        logger.error(f"Error fetching proxy info: {e}")
+        raise InternalServerError(f"Failed to get proxy info: {str(e)}") from e

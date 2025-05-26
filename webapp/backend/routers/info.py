@@ -8,6 +8,7 @@ from schemas.info import (
     DeploymentInfoResponse,
     VerificationInfoResponse,
     ScorecardResponse,
+    ProxyInfoResponse,
 )
 from schemas.response import ErrorResponse
 from schemas.info import ScorecardRequest
@@ -16,6 +17,7 @@ from services.info_service import (
     get_deployment_data,
     get_verification_data,
     get_scorecard_data,
+    get_proxy_data,
 )
 
 
@@ -111,7 +113,7 @@ async def get_contract_info(
     
     return VerificationInfoResponse(
         address=data["address"],
-        verfication=mapping[data["match"]],
+        verification=mapping[data["match"]],
         verifiedAt=data["verifiedAt"],
     )
 
@@ -154,3 +156,39 @@ async def get_scorecard_info(
         date=scorecard_data["raw"]["date"],
         checks=scorecard_data["raw"]["checks"],
     )
+
+
+@router.get(
+    "/proxy/{address}",
+    status_code=status.HTTP_200_OK,
+    response_model=ProxyInfoResponse,
+    responses={
+        500: {
+            "description": "Internal server error",
+            "model": ErrorResponse,
+        },
+        422: {
+            "description": "Input validation error",
+            "model": ErrorResponse,
+        },
+        404: {
+            "description": "Proxy information not found",
+            "model": ErrorResponse,
+        },
+    },
+    summary="Get proxy information",
+    description="Fetch proxy information for a given address.",
+)
+async def get_proxy_info(
+    address: str,
+):
+    """
+    Get proxy information for a given contract address.
+    """
+    data = get_proxy_data(address)
+    return ProxyInfoResponse(
+        address=data["address"],
+        type=data["type"],
+        message=data["message"],
+    )
+
