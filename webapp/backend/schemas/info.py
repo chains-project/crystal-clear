@@ -45,3 +45,13 @@ class ScorecardResponse(BaseModel):
     score: float
     date: str
     checks: List[dict]
+
+class ProxyInfoResponse(BaseModel):
+    """Response model for proxy information."""
+    address: str = Field(..., description="Proxy contract address")
+    type: str = Field(
+        ..., description="Type of proxy (e.g., 'upgradable')"
+    )
+    message: str = Field(
+        ..., description="Additional information about the proxy"
+    )
