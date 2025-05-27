@@ -23,6 +23,9 @@ class Settings(BaseSettings):
     # Github Token
     github_token: str
 
+    # Etherscan API Key
+    etherscan_api_key: str
+
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"
@@ -35,6 +38,7 @@ class Settings(BaseSettings):
             "log_level": "LOG_LEVEL",
             "allium_api_key": "ALLIUM_API_KEY",
             "github_token": "GITHUB_TOKEN",
+            "ehterscan_api_key": "ETHERSCAN_API_KEY"
         }
 
 
