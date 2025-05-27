@@ -9,6 +9,7 @@ from schemas.info import (
     VerificationInfoResponse,
     ScorecardResponse,
     ProxyInfoResponse,
+    PermissionsInfoResponse,
 )
 from schemas.response import ErrorResponse
 from schemas.info import ScorecardRequest
@@ -18,6 +19,7 @@ from services.info_service import (
     get_verification_data,
     get_scorecard_data,
     get_proxy_data,
+    get_permissions_data,
 )
 
 
@@ -190,5 +192,42 @@ async def get_proxy_info(
         address=data["address"],
         type=data["type"],
         message=data["message"],
+    )
+
+@router.get(
+    "/permissions/{address}",
+    status_code=status.HTTP_200_OK,
+    response_model=PermissionsInfoResponse,
+    responses={
+        500: {
+            "description": "Internal server error",
+            "model": ErrorResponse,
+        },
+        422: {
+            "description": "Input validation error",
+            "model": ErrorResponse,
+        },
+        404: {
+            "description": "Permissions information not found",
+            "model": ErrorResponse,
+        },
+    },
+    summary="Get permissioned functions for a contract",
+    description="Fetch functions that have permission checks for a given contract address.",
+)
+async def get_permissions_info(
+    address: str,
+):
+    """
+    Get permissioned functions for a contract address.
+    """
+    data = get_permissions_data(address)
+    permissioned_functions = []
+    for function in data:
+        permissioned_functions.append(function["function"])
+
+    return PermissionsInfoResponse(
+        address=address,
+        functions=permissioned_functions
     )
 
