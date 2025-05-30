@@ -1,6 +1,6 @@
-from fastapi import APIRouter, status, Depends
+from fastapi import APIRouter, status, Depends, HTTPException
 from sqlalchemy.orm import Session
-from loguru import logger
+import asyncio
 
 from core.database import get_session
 from schemas.info import (
@@ -203,6 +203,10 @@ async def get_proxy_info(
             "description": "Internal server error",
             "model": ErrorResponse,
         },
+        504: {
+            "description": "Request timed out",
+            "model": ErrorResponse,
+        },
         422: {
             "description": "Input validation error",
             "model": ErrorResponse,
@@ -215,16 +219,21 @@ async def get_proxy_info(
     summary="Get permissioned functions for a contract",
     description="Fetch functions that have permission checks for a given contract address.",
 )
-async def get_permissions_info(
-    address: str,
-):
+async def get_permissions_info(address: str):
     """
     Get permissioned functions for a contract address.
     """
-    data = get_permissions_data(address)
-    permissioned_functions = []
-    for function in data:
-        permissioned_functions.append(function["function"])
+
+    try:
+        # Run the blocking function in a thread, with a timeout
+        data = await asyncio.wait_for(
+            asyncio.to_thread(get_permissions_data, address),
+            timeout=30  # seconds
+        )
+    except asyncio.TimeoutError:
+        raise HTTPException(status_code=504, detail="Request timed out")
+
+    permissioned_functions = [fn["function"] for fn in data]
 
     return PermissionsInfoResponse(
         address=address,

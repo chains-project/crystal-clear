@@ -218,8 +218,6 @@ def get_permissions_data(address: str) -> Dict[str, str]:
         if not Web3.is_address(address):
             raise InputValidationError(f"Invalid Ethereum address: {address}")
         
-
-
         permissions = get_permissions(address)
 
         if not permissions or len(permissions) == 0:

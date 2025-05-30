@@ -49,9 +49,9 @@ def detect_permissions(path, mainContract, etherscan_api_key=None):
         bool: True if the address is an admin of any contract, False otherwise.
     """
     if etherscan_api_key:
-        slither = Slither(path, etherscan_api_key=etherscan_api_key, disallow_partial=False)
+        slither = Slither(path, etherscan_api_key=etherscan_api_key, disallow_partial=True)
     else:
-        slither = Slither(path, disallow_partial=False)    
+        slither = Slither(path, disallow_partial=True)    
 
     contract = slither.get_contract_from_name(mainContract)[0]
     written_variables = []
