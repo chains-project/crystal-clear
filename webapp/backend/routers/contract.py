@@ -73,12 +73,12 @@ async def get_contracts(
     return await service.get_contracts(protocol, version)
 
 @router.get(
-    "/{address}/audit",
+    "/{address}/audits",
     response_model=Dict,
-    summary="Check if contract has an audit",
-    description="Check if a contract has an associated audit report based on protocol and version.",
+    summary="Check if contract has audits",
+    description="Check if a contract has associated audit reports based on protocol and version.",
 )
-async def check_contract_audit(
+async def check_contract_audits(
     address: str,
     service: ContractService = Depends(get_contract_service),
 ):
@@ -94,4 +94,4 @@ async def check_contract_audit(
         - has_audit: Boolean indicating if audit exists
         - audit: Audit details if found, null if not found
     """
-    return await service.check_contract_audit(address)
+    return await service.check_contract_audits(address)

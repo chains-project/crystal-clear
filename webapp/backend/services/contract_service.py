@@ -38,19 +38,18 @@ class ContractService:
     ) -> list[Contract]:
         return crud.get_contracts(self.session, protocol, version)
 
-    async def check_contract_audit(self, address: str) -> dict:
-        contract = crud.get_contract(self.session, address)
+    async def check_contract_audits(self, address: str) -> dict:
+        contract = await crud.get_contract(self.session, address)
         if not contract:
             raise HTTPException(status_code=404, detail="Contract not found")
         
-        audit = audit_crud.get_audit_by_contract(
+        audits = await audit_crud.get_audits(
             self.session,
             protocol=contract.protocol,
             version=contract.version
         )
-        
+
         return {
             "contract": contract,
-            "has_audit": audit is not None,
-            "audit": audit
+            "audits": audits
         }
