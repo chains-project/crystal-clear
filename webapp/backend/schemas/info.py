@@ -55,3 +55,10 @@ class ProxyInfoResponse(BaseModel):
     message: str = Field(
         ..., description="Additional information about the proxy"
     )
+
+class PermissionsInfoResponse(BaseModel):
+    """Response model for permissioned functions of a contract."""
+    address: str = Field(..., description="Contract address")
+    functions: List[str] = Field(
+        ..., description="List of functions that require specific permissions"
+    )

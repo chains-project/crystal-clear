@@ -11,6 +11,7 @@ from core.config import settings
 from core.exceptions import InternalServerError, NotFoundError, InputValidationError
 from core.metadata import get_deployment
 from core.proxy import detect_delegatecall_and_address
+from core.permissions import get_permissions
 
 import crud.deployment
 from models.deployment import DeploymentCreate
@@ -201,3 +202,30 @@ def get_proxy_data(address: str) -> Optional[Dict[str, str]]:
     except Exception as e:
         logger.error(f"Error fetching proxy info: {e}")
         raise InternalServerError(f"Failed to get proxy info: {str(e)}") from e
+    
+def get_permissions_data(address: str) -> Dict[str, str]:
+    """
+    Get permissioned functions of a contract.
+
+    Args:
+        address: Ethereum contract address
+
+    Returns:
+        Permissioned functions
+    """
+    try:
+        # check if address is valid for ethereum
+        if not Web3.is_address(address):
+            raise InputValidationError(f"Invalid Ethereum address: {address}")
+        
+        permissions = get_permissions(address)
+
+        if not permissions or len(permissions) == 0:
+            raise NotFoundError(f"No permissioned functions found for {address}")
+        return permissions
+    except (InputValidationError, NotFoundError) as e:
+        logger.error(f"Error: {e}")
+        raise e
+    except Exception as e:
+        logger.error(f"Error fetching permissions data: {e}")
+        raise InternalServerError(f"Failed to get permissions data: {str(e)}") from e

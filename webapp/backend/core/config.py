@@ -11,6 +11,9 @@ class Settings(BaseSettings):
     api_host: str
     api_port: int
 
+    # Request Timeout
+    request_timeout: int = 60  # seconds
+
     # maximum block range for analysis
     MAX_BLOCK_RANGE: int = 7000
 
@@ -22,6 +25,9 @@ class Settings(BaseSettings):
 
     # Github Token
     github_token: str
+
+    # Etherscan API Key
+    etherscan_api_key: str
 
     class Config:
         env_file = ".env"
@@ -35,6 +41,7 @@ class Settings(BaseSettings):
             "log_level": "LOG_LEVEL",
             "allium_api_key": "ALLIUM_API_KEY",
             "github_token": "GITHUB_TOKEN",
+            "ehterscan_api_key": "ETHERSCAN_API_KEY"
         }
 
 
