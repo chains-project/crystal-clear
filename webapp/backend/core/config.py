@@ -11,6 +11,9 @@ class Settings(BaseSettings):
     api_host: str
     api_port: int
 
+    # Request Timeout
+    request_timeout: int = 60  # seconds
+
     # maximum block range for analysis
     MAX_BLOCK_RANGE: int = 7000
 
