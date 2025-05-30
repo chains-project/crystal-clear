@@ -7,7 +7,7 @@ from fastapi.exceptions import HTTPException
 from core.config import settings
 from core.logging import setup_logging
 from core.database import create_db_and_tables
-from routers import analysis, health, info
+from routers import analysis, health, info, audit
 
 # Setup logging
 setup_logging()
@@ -50,6 +50,7 @@ async def timeout_middleware(request: Request, call_next):
 app.include_router(health.router)
 app.include_router(analysis.router)
 app.include_router(info.router)
+app.include_router(audit.router)
 
 
 @app.get("/")
