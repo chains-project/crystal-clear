@@ -1,7 +1,9 @@
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 from models.contract import Contract, ContractCreate
+from models.audit import Audit
 import crud.contract as crud
+import crud.audit as audit_crud
 
 class ContractService:
     def __init__(self, session: Session):
@@ -35,3 +37,20 @@ class ContractService:
         version: str | None = None
     ) -> list[Contract]:
         return crud.get_contracts(self.session, protocol, version)
+
+    async def check_contract_audit(self, address: str) -> dict:
+        contract = crud.get_contract(self.session, address)
+        if not contract:
+            raise HTTPException(status_code=404, detail="Contract not found")
+        
+        audit = audit_crud.get_audit_by_contract(
+            self.session,
+            protocol=contract.protocol,
+            version=contract.version
+        )
+        
+        return {
+            "contract": contract,
+            "has_audit": audit is not None,
+            "audit": audit
+        }

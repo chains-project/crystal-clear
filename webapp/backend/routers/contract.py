@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
-from typing import List
+from typing import List, Dict
 from models.contract import Contract, ContractCreate
 from services.contract_service import ContractService
 from core.database import get_session
@@ -71,3 +71,27 @@ async def get_contracts(
     service: ContractService = Depends(get_contract_service),
 ):
     return await service.get_contracts(protocol, version)
+
+@router.get(
+    "/{address}/audit",
+    response_model=Dict,
+    summary="Check if contract has an audit",
+    description="Check if a contract has an associated audit report based on protocol and version.",
+)
+async def check_contract_audit(
+    address: str,
+    service: ContractService = Depends(get_contract_service),
+):
+    """
+    Check if a contract has an associated audit.
+    
+    Args:
+        address: The contract address to check
+        
+    Returns:
+        Dict containing:
+        - contract: Contract details
+        - has_audit: Boolean indicating if audit exists
+        - audit: Audit details if found, null if not found
+    """
+    return await service.check_contract_audit(address)

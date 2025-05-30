@@ -32,3 +32,10 @@ async def get_audits(session: Session, protocol: str = None, version: str = None
         stmt = stmt.where(Audit.company == company)
     
     return session.exec(stmt).all()
+
+def get_audit_by_contract(session: Session, protocol: str, version: str) -> Audit | None:
+    return session.exec(
+        select(Audit)
+        .where(Audit.protocol == protocol)
+        .where(Audit.version == version)
+    ).first()
