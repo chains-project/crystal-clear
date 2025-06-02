@@ -1,25 +1,44 @@
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
-from typing import List
+from fastapi import APIRouter, Depends, HTTPException, status
+from models.audit import (
+    Audit,
+    AuditRequest,
+    AuditResponse,
+    AuditUpdate,
+    AuditListResponse
+)
+from schemas.response import ErrorResponse
+
 from core.database import get_session
-from models.audit import Audit, AuditCreate
-import services.audit_service as service
+from sqlalchemy.orm import Session
+from services.audit_service import AuditService
 
 router = APIRouter(
     prefix="/audit",
     tags=["audit"],
 )
 
+def get_audit_service(session: Session = Depends(get_session)) -> AuditService:
+    return AuditService(session)
+
 @router.post(
     "/",
-    response_model=Audit,
-    status_code=201,
+    response_model=AuditResponse,
+    status_code=status.HTTP_201_CREATED,
+    responses={
+        400: {
+            "model": ErrorResponse,
+            "description": "Invalid input data"
+        },
+        500: {
+            "model": ErrorResponse,
+            "description": "Internal server error"
+        },
+    },
     summary="Create a new audit entry",
-    description="Create a new audit entry with the provided protocol, version, and company.",
 )
 async def create_audit(
-    audit_data: AuditCreate,
-    session: Session = Depends(get_session),
+    audit_data: AuditRequest,
+    service: AuditService = Depends(get_audit_service),
 ):
     """
     Create a new audit entry.
@@ -35,19 +54,28 @@ async def create_audit(
         HTTPException: If the input data is invalid or creation fails.
     """
     print(f"Creating audit entry with data: {audit_data}")
-    audit = service.create_audit(session, audit_data)
+    audit = await service.create_audit(audit_data)
     return audit
 
 @router.get(
     "/{id}",
-    response_model=Audit,
-    status_code=200,
+    response_model=AuditResponse,
+    status_code=status.HTTP_200_OK,
+    responses={
+        404: {
+            "model": ErrorResponse,
+            "description": "Audit not found"
+        },
+        500: {
+            "model": ErrorResponse,
+            "description": "Internal server error"
+        },
+    },
     summary="Get audit entry by ID",
-    description="Retrieve an audit entry by its ID.",
 )
 async def get_audit(
     id: int,
-    session: Session = Depends(get_session),
+    service: AuditService = Depends(get_audit_service),
 ):
     """
     Get an audit entry by ID.
@@ -59,20 +87,30 @@ async def get_audit(
     Returns:
         Audit entry if found, raises HTTPException if not found.
     """
-    audit = service.get_audit(session, id)
+    audit = await service.get_audit(id)
     if not audit:
         raise HTTPException(status_code=404, detail="Audit not found")
     return audit
 
 @router.delete(
     "/{id}",
-    status_code=204,
+    status_code=status.HTTP_204_NO_CONTENT,
+    responses={
+        404: {
+            "model": ErrorResponse,
+            "description": "Audit not found"
+        },
+        500: {
+            "model": ErrorResponse,
+            "description": "Internal server error"
+        },
+    },
     summary="Delete audit entry by ID",
     description="Delete an audit entry by its ID.",
 )
 async def delete_audit(
     id: int,
-    session: Session = Depends(get_session),
+    service: AuditService = Depends(get_audit_service),
 ):
     """
     Delete an audit entry by ID.
@@ -84,22 +122,74 @@ async def delete_audit(
     Returns:
         No content if deletion is successful, raises HTTPException if not found.
     """
-    audit = service.delete_audit(session, id)
+    audit = await service.delete_audit(id)
     if not audit:
         raise HTTPException(status_code=404, detail="Audit not found")
     return {"detail": "Audit deleted successfully"}
 
 @router.get(
     "/",
-    response_model=List[Audit],
-    status_code=200,
+    response_model=AuditListResponse,
+    status_code=status.HTTP_200_OK,
+    responses={
+        500: {
+            "model": ErrorResponse,
+            "description": "Internal server error"
+        },
+    },
     summary="Get audit entries",
-    description="Retrieve audit entries with optional filters for protocol, version, and company.",
 )
 async def get_audits(
     protocol: str | None = None,
     version: str | None = None,
     company: str | None = None,
-    session: Session = Depends(get_session),
+    service: AuditService = Depends(get_audit_service),
 ):
-    return await service.get_audits(session, protocol, version, company)
+    audits = await service.get_audits(protocol, version, company)
+    print(audits)
+    return AuditListResponse(
+        total=len(audits),
+        items=audits
+    )
+
+@router.put(
+    "/{id}",
+    response_model=AuditResponse,
+    status_code=status.HTTP_200_OK,
+    responses={
+        400: {
+            "model": ErrorResponse,
+            "description": "Invalid input data"
+        },
+        404: {
+            "model": ErrorResponse,
+            "description": "Audit not found"
+        },
+        500: {
+            "model": ErrorResponse,
+            "description": "Internal server error"
+        },
+    },
+    summary="Update audit entry by ID",
+)
+async def update_audit(
+    id: int,
+    audit_data: AuditUpdate,
+    service: AuditService = Depends(get_audit_service),
+):
+    """
+    Update an existing audit entry by ID.
+    
+    Args:
+        id: ID of the audit entry to update.
+        audit_data: Data for the updated audit entry.
+        session: SQLAlchemy session.
+    
+    Returns:
+        Updated audit entry if successful, raises HTTPException if not found.
+    """
+    print(f"Updating audit entry with ID {id} and data: {audit_data}")
+    audit = await service.update_audit(id, audit_data)
+    if not audit:
+        raise HTTPException(status_code=404, detail="Audit not found")
+    return audit
