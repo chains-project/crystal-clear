@@ -1,9 +1,15 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
-from typing import List, Dict
-from models.contract import Contract, ContractCreate
+from models.contract import (
+    ContractCreate,
+    ContractUpdate,
+    ContractResponse,
+    ContractListResponse
+)
 from services.contract_service import ContractService
 from core.database import get_session
+from schemas.contract import ContractAuditCheckResponse
+from schemas.response import ErrorResponse
 
 router = APIRouter(
     prefix="/contract",
@@ -15,8 +21,18 @@ def get_contract_service(session: Session = Depends(get_session)) -> ContractSer
 
 @router.post(
     "/",
-    response_model=Contract,
-    status_code=201,
+    response_model=ContractResponse,
+    status_code=status.HTTP_201_CREATED,
+    responses={
+        400: {
+            "model": ErrorResponse,
+            "description": "Invalid input data"
+        },
+        500: {
+            "model": ErrorResponse,
+            "description": "Internal server error"
+        },
+    },
     summary="Create a new contract",
 )
 async def create_contract(
@@ -27,7 +43,18 @@ async def create_contract(
 
 @router.get(
     "/{address}",
-    response_model=Contract,
+    response_model=ContractResponse,
+    status_code=status.HTTP_200_OK,
+    responses={
+        404: {
+            "model": ErrorResponse,
+            "description": "Contract not found"
+        },
+        500: {
+            "model": ErrorResponse,
+            "description": "Internal server error"
+        },
+    },
     summary="Get contract by address",
 )
 async def get_contract(
@@ -38,19 +65,40 @@ async def get_contract(
 
 @router.put(
     "/{address}",
-    response_model=Contract,
+    response_model=ContractResponse,
+    status_code=status.HTTP_200_OK,
+    responses={
+        404: {
+            "model": ErrorResponse,
+            "description": "Contract not found"
+        },
+        500: {
+            "model": ErrorResponse,
+            "description": "Internal server error"
+        },
+    },
     summary="Update contract by address",
 )
 async def update_contract(
     address: str,
-    contract_data: ContractCreate,
+    contract_data: ContractUpdate,
     service: ContractService = Depends(get_contract_service),
 ):
     return await service.update_contract(address, contract_data)
 
 @router.delete(
     "/{address}",
-    status_code=204,
+    status_code=status.HTTP_204_NO_CONTENT,
+    responses={
+        404: {
+            "model": ErrorResponse,
+            "description": "Contract not found"
+        },
+        500: {
+            "model": ErrorResponse,
+            "description": "Internal server error"
+        },
+    },
     summary="Delete contract by address",
 )
 async def delete_contract(
@@ -62,7 +110,14 @@ async def delete_contract(
 
 @router.get(
     "/",
-    response_model=List[Contract],
+    response_model=ContractListResponse,
+    status_code=status.HTTP_200_OK,
+    responses={
+        500: {
+            "model": ErrorResponse,
+            "description": "Internal server error"
+        },
+    },
     summary="Get all contracts",
 )
 async def get_contracts(
@@ -70,11 +125,26 @@ async def get_contracts(
     version: str | None = None,
     service: ContractService = Depends(get_contract_service),
 ):
-    return await service.get_contracts(protocol, version)
+    contracts = await service.get_contracts(protocol, version)
+    return ContractListResponse(
+        total=len(contracts),
+        items=contracts
+    )
 
 @router.get(
     "/{address}/audits",
-    response_model=Dict,
+    response_model=ContractAuditCheckResponse,
+    status_code=status.HTTP_200_OK,
+    responses={
+        404: {
+            "model": ErrorResponse,
+            "description": "Contract not found"
+        },
+        500: {
+            "model": ErrorResponse,
+            "description": "Internal server error"
+        },
+    },
     summary="Check if contract has audits",
     description="Check if a contract has associated audit reports based on protocol and version.",
 )
@@ -83,15 +153,16 @@ async def check_contract_audits(
     service: ContractService = Depends(get_contract_service),
 ):
     """
-    Check if a contract has an associated audit.
+    Check if a contract has associated audits.
     
     Args:
         address: The contract address to check
         
     Returns:
-        Dict containing:
+        Response containing:
         - contract: Contract details
-        - has_audit: Boolean indicating if audit exists
-        - audit: Audit details if found, null if not found
+        - has_audits: Boolean indicating if audits exist
+        - audits: List of audit details if found
     """
-    return await service.check_contract_audits(address)
+    result = await service.check_contract_audits(address)
+    return ContractAuditCheckResponse(**result)

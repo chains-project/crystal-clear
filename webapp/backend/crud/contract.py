@@ -1,5 +1,5 @@
 from sqlmodel import Session, select
-from models.contract import Contract, ContractCreate
+from models.contract import Contract, ContractCreate, ContractUpdate
 from typing import List
 from datetime import datetime
 
@@ -15,15 +15,29 @@ def get_contract(session: Session, address: str) -> Contract | None:
         select(Contract).where(Contract.address == address)
     ).first()
 
-def update_contract(session: Session, address: str, contract_data: ContractCreate) -> Contract | None:
+def update_contract(session: Session, address: str, contract_data: ContractUpdate) -> Contract | None:
+    """
+    Update a contract with optional fields.
+    Only updates fields that are provided in contract_data.
+    
+    Args:
+        session: Database session
+        address: Address of the contract to update
+        contract_data: ContractUpdate model with optional fields
+    
+    Returns:
+        Updated Contract object or None if not found
+    """
     contract = get_contract(session, address)
     if not contract:
         return None
         
-    for key, value in contract_data.model_dump().items():
+    # Only update fields that are not None
+    update_data = contract_data.model_dump(exclude_unset=True)
+    for key, value in update_data.items():
         setattr(contract, key, value)
-    contract.last_updated = datetime.now()
     
+    contract.last_updated = datetime.now()
     session.commit()
     session.refresh(contract)
     return contract
