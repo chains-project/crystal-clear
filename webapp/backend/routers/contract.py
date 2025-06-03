@@ -157,7 +157,6 @@ async def get_contract_audits(
     Returns:
         Response containing:
         - contract: Contract details
-        - has_audits: Boolean indicating if audits exist
         - audits: List of audit details if found
     """
     result = await service.get_contract_audits(address)
