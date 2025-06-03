@@ -22,14 +22,8 @@ router = APIRouter(
     response_model=SourceCodeResponse,
     status_code=status.HTTP_201_CREATED,
     responses={
-        400: {
-            "model": ErrorResponse,
-            "description": "Invalid input data"
-        },
-        500: {
-            "model": ErrorResponse,
-            "description": "Internal server error"
-        },
+        400: {"model": ErrorResponse, "description": "Invalid input data"},
+        500: {"model": ErrorResponse, "description": "Internal server error"},
     },
     summary="Create a new source code entry",
 )
@@ -39,32 +33,32 @@ def create_source_code(
     source_code_in: SourceCodeCreate,
 ) -> Any:
     """Create new source code entry"""
-    source_code = crud.source_code.create_source_code(session, source_code_in)
-    return source_code
+    try:
+        source_code = crud.source_code.create_source_code(session, source_code_in)
+        return source_code
+    except Exception as e:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Source code for protocol {source_code_in.protocol} version {source_code_in.version} already exists"
+        )
 
 @router.get(
-    "/{source_code_id}",
+    "/{protocol}/{version}",
     response_model=SourceCodeResponse,
-    status_code=status.HTTP_200_OK,
     responses={
-        404: {
-            "model": ErrorResponse,
-            "description": "Source code not found"
-        },
-        500: {
-            "model": ErrorResponse,
-            "description": "Internal server error"
-        },
+        404: {"model": ErrorResponse, "description": "Source code not found"},
+        500: {"model": ErrorResponse, "description": "Internal server error"},
     },
-    summary="Get source code by ID",
+    summary="Get source code by protocol and version",
 )
 def read_source_code(
     *,
     session: Session = Depends(get_session),
-    source_code_id: int,
+    protocol: str,
+    version: str,
 ) -> Any:
-    """Get source code by ID"""
-    source_code = crud.source_code.get_source_code(session, source_code_id)
+    """Get source code by protocol and version"""
+    source_code = crud.source_code.get_source_code(session, protocol, version)
     if not source_code:
         raise HTTPException(status_code=404, detail="Source code not found")
     return source_code
@@ -72,12 +66,8 @@ def read_source_code(
 @router.get(
     "/",
     response_model=SourceCodeListResponse,
-    status_code=status.HTTP_200_OK,
     responses={
-        500: {
-            "model": ErrorResponse,
-            "description": "Internal server error"
-        },
+        500: {"model": ErrorResponse, "description": "Internal server error"},
     },
     summary="List source code entries",
 )
@@ -103,59 +93,45 @@ def list_source_codes(
     }
 
 @router.put(
-    "/{source_code_id}",
+    "/{protocol}/{version}",
     response_model=SourceCodeResponse,
-    status_code=status.HTTP_200_OK,
     responses={
-        404: {
-            "model": ErrorResponse,
-            "description": "Source code not found"
-        },
-        400: {
-            "model": ErrorResponse,
-            "description": "Invalid input data"
-        },
-        500: {
-            "model": ErrorResponse,
-            "description": "Internal server error"
-        },
+        404: {"model": ErrorResponse, "description": "Source code not found"},
+        400: {"model": ErrorResponse, "description": "Invalid input data"},
+        500: {"model": ErrorResponse, "description": "Internal server error"},
     },
     summary="Update source code entry",
 )
 def update_source_code(
     *,
     session: Session = Depends(get_session),
-    source_code_id: int,
+    protocol: str,
+    version: str,
     source_code_in: SourceCodeUpdate,
 ) -> Any:
     """Update source code entry"""
     source_code = crud.source_code.update_source_code(
-        session, source_code_id, source_code_in
+        session, protocol, version, source_code_in
     )
     if not source_code:
         raise HTTPException(status_code=404, detail="Source code not found")
     return source_code
 
 @router.delete(
-    "/{source_code_id}",
+    "/{protocol}/{version}",
     status_code=status.HTTP_204_NO_CONTENT,
     responses={
-        404: {
-            "model": ErrorResponse,
-            "description": "Source code not found"
-        },
-        500: {
-            "model": ErrorResponse,
-            "description": "Internal server error"
-        },
+        404: {"model": ErrorResponse, "description": "Source code not found"},
+        500: {"model": ErrorResponse, "description": "Internal server error"},
     },
     summary="Delete source code entry",
 )
 def delete_source_code(
     *,
     session: Session = Depends(get_session),
-    source_code_id: int,
-):
+    protocol: str,
+    version: str,
+) -> None:
     """Delete source code entry"""
-    if not crud.source_code.delete_source_code(session, source_code_id):
+    if not crud.source_code.delete_source_code(session, protocol, version):
         raise HTTPException(status_code=404, detail="Source code not found")
