@@ -55,7 +55,7 @@ class ContractService:
         """Get contracts with optional protocol and version filters"""
         return crud.get_contracts(self.session, protocol, version)
 
-    async def check_contract_audits(self, address: str) -> dict:
+    async def get_contract_audits(self, address: str) -> dict:
         """Check if contract has associated audits"""
         contract = await self.get_contract(address)
         
