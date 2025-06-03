@@ -2,49 +2,33 @@ from sqlmodel import SQLModel, Field
 from datetime import datetime
 from typing import Optional
 
-class Audit(SQLModel, table=True):
-    id: int = Field(default=None, primary_key=True)
-    protocol: str
-    version: str
-    company: str
+class AuditBase(SQLModel):
+    """Base model with common fields"""
+    protocol: str = Field(primary_key=True)
+    version: str = Field(primary_key=True)
+    company: str = Field(primary_key=True)
     url: str
+
+class Audit(AuditBase, table=True):
+    """Database model for audit entries"""
     date_added: datetime = Field(default_factory=datetime.now)
     last_updated: datetime = Field(default_factory=datetime.now)
 
+    class Config:
+        table_name = "audit"
 
-class AuditCreate(SQLModel):
-    protocol: str
-    version: str
-    company: str
-    url: str
-
-
-class AuditResponse(SQLModel):
-    """Response schema for audit entries"""
-    id: int
-    protocol: str
-    version: str
-    company: str
-    url: str
-    date_added: datetime
-    last_updated: datetime
-
-
-class AuditRequest(SQLModel):
-    """Request schema for creating/updating audit entries"""
-    protocol: str
-    version: str
-    company: str
-    url: str
-
+class AuditCreate(AuditBase):
+    """Request model for creating audit entries"""
+    pass
 
 class AuditUpdate(SQLModel):
-    """Schema for updating audit entries with optional fields"""
-    protocol: Optional[str] = None
-    version: Optional[str] = None
-    company: Optional[str] = None
-    url: Optional[str] = None
+    """Schema for updating audit entries"""
+    url: str
 
+class AuditResponse(AuditBase):
+    """Response schema for audit entries"""
+    date_added: datetime
+    last_updated: datetime
 
 class AuditListResponse(SQLModel):
     """Response schema for list of audits"""

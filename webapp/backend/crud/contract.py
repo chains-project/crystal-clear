@@ -4,6 +4,7 @@ from typing import List
 from datetime import datetime
 
 def create_contract(session: Session, contract_data: ContractCreate) -> Contract:
+    contract_data.address = contract_data.address.lower()
     contract = Contract(**contract_data.model_dump())
     session.add(contract)
     session.commit()
@@ -11,9 +12,7 @@ def create_contract(session: Session, contract_data: ContractCreate) -> Contract
     return contract
 
 def get_contract(session: Session, address: str) -> Contract | None:
-    return session.exec(
-        select(Contract).where(Contract.address == address)
-    ).first()
+    return session.get(Contract, address.lower())
 
 def update_contract(session: Session, address: str, contract_data: ContractUpdate) -> Contract | None:
     """
@@ -28,7 +27,7 @@ def update_contract(session: Session, address: str, contract_data: ContractUpdat
     Returns:
         Updated Contract object or None if not found
     """
-    contract = get_contract(session, address)
+    contract = get_contract(session, address.lower())
     if not contract:
         return None
         
@@ -38,6 +37,7 @@ def update_contract(session: Session, address: str, contract_data: ContractUpdat
         setattr(contract, key, value)
     
     contract.last_updated = datetime.now()
+    session.add(contract)
     session.commit()
     session.refresh(contract)
     return contract

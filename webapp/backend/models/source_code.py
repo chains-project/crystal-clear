@@ -6,7 +6,7 @@ class SourceCodeBase(SQLModel):
     """Base model with common fields"""
     protocol: str = Field(primary_key=True)
     version: str = Field(primary_key=True)
-    link: str
+    url: str
 
 class SourceCode(SourceCodeBase, table=True):
     """Database model for source code repositories"""
@@ -14,7 +14,7 @@ class SourceCode(SourceCodeBase, table=True):
     last_updated: datetime = Field(default_factory=datetime.now)
 
     class Config:
-        table_name = "source_code"
+        table_name = "source-code"
 
 class SourceCodeCreate(SourceCodeBase):
     """Request model for creating source code entries"""
@@ -22,7 +22,7 @@ class SourceCodeCreate(SourceCodeBase):
 
 class SourceCodeUpdate(SQLModel):
     """Request model for updating source code entries"""
-    link: Optional[str] = None
+    url: str
 
 class SourceCodeResponse(SourceCodeBase):
     """Response model for source code operations"""

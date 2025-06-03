@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from models.contract import (
     ContractCreate,
@@ -8,7 +8,7 @@ from models.contract import (
 )
 from services.contract_service import ContractService
 from core.database import get_session
-from schemas.contract import ContractAuditCheckResponse
+from schemas.contract import ContractAuditCheckResponse, ContractSourceCodeResponse
 from schemas.response import ErrorResponse
 
 router = APIRouter(
@@ -26,7 +26,7 @@ def get_contract_service(session: Session = Depends(get_session)) -> ContractSer
     responses={
         400: {
             "model": ErrorResponse,
-            "description": "Invalid input data"
+            "description": "Contract already exists"
         },
         500: {
             "model": ErrorResponse,
@@ -38,13 +38,12 @@ def get_contract_service(session: Session = Depends(get_session)) -> ContractSer
 async def create_contract(
     contract_data: ContractCreate,
     service: ContractService = Depends(get_contract_service),
-):
+) -> ContractResponse:
     return await service.create_contract(contract_data)
 
 @router.get(
     "/{address}",
     response_model=ContractResponse,
-    status_code=status.HTTP_200_OK,
     responses={
         404: {
             "model": ErrorResponse,
@@ -60,13 +59,12 @@ async def create_contract(
 async def get_contract(
     address: str,
     service: ContractService = Depends(get_contract_service),
-):
+) -> ContractResponse:
     return await service.get_contract(address)
 
 @router.put(
     "/{address}",
     response_model=ContractResponse,
-    status_code=status.HTTP_200_OK,
     responses={
         404: {
             "model": ErrorResponse,
@@ -83,7 +81,7 @@ async def update_contract(
     address: str,
     contract_data: ContractUpdate,
     service: ContractService = Depends(get_contract_service),
-):
+) -> ContractResponse:
     return await service.update_contract(address, contract_data)
 
 @router.delete(
@@ -104,27 +102,25 @@ async def update_contract(
 async def delete_contract(
     address: str,
     service: ContractService = Depends(get_contract_service),
-):
+) -> None:
     await service.delete_contract(address)
-    return {"detail": "Contract deleted successfully"}
 
 @router.get(
     "/",
     response_model=ContractListResponse,
-    status_code=status.HTTP_200_OK,
     responses={
         500: {
             "model": ErrorResponse,
             "description": "Internal server error"
         },
     },
-    summary="Get all contracts",
+    summary="List contracts with optional filters",
 )
 async def get_contracts(
     protocol: str | None = None,
     version: str | None = None,
     service: ContractService = Depends(get_contract_service),
-):
+) -> ContractListResponse:
     contracts = await service.get_contracts(protocol, version)
     return ContractListResponse(
         total=len(contracts),
@@ -166,3 +162,38 @@ async def check_contract_audits(
     """
     result = await service.check_contract_audits(address)
     return ContractAuditCheckResponse(**result)
+
+@router.get(
+    "/{address}/source_code",
+    response_model=ContractSourceCodeResponse,
+    status_code=status.HTTP_200_OK,
+    responses={
+        404: {
+            "model": ErrorResponse,
+            "description": "Contract not found"
+        },
+        500: {
+            "model": ErrorResponse,
+            "description": "Internal server error"
+        },
+    },
+    summary="Get contract source code",
+    description="Fetch the source code for a contract by its address.",
+)
+async def get_contract_source_code(
+    address: str,
+    service: ContractService = Depends(get_contract_service),
+):
+    """
+    Get the source code for a contract by its address.
+    
+    Args:
+        address: The contract address to fetch source code for
+        
+    Returns:
+        Response containing:
+        - contract: Contract details
+        - source_code: Source code content
+    """
+    result = await service.get_contract_source_code(address)
+    return result

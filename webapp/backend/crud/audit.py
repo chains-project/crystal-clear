@@ -10,19 +10,33 @@ def create_audit(session: Session, audit_data: AuditCreate) -> Audit:
     session.refresh(audit)
     return audit
 
+def get_audit(
+    session: Session, 
+    protocol: str,
+    version: str,
+    company: str
+) -> Audit | None:
+    return session.get(Audit, {"protocol": protocol, "version": version, "company": company})
 
-def get_audit(session: Session, id: int) -> Audit | None:
-    return session.get(Audit, id)
-
-def delete_audit(session: Session, id: int) -> bool:
-    audit = session.get(Audit, id)
+def delete_audit(
+    session: Session,
+    protocol: str,
+    version: str,
+    company: str
+) -> bool:
+    audit = get_audit(session, protocol, version, company)
     if not audit:
         return False
     session.delete(audit)
     session.commit()
     return True
 
-def get_audits(session: Session, protocol: str = None, version: str = None, company: str = None) -> List[Audit]:
+def get_audits(
+    session: Session, 
+    protocol: str | None = None, 
+    version: str | None = None, 
+    company: str | None = None
+) -> List[Audit]:
     stmt = select(Audit)
     
     if protocol:
@@ -34,31 +48,21 @@ def get_audits(session: Session, protocol: str = None, version: str = None, comp
     
     return session.exec(stmt).all()
 
-def update_audit(session: Session, id: int, audit_data: AuditUpdate) -> Audit | None:
-    """
-    Update an audit entry with optional fields.
-    Only updates fields that are provided in audit_data.
-    
-    Args:
-        session: Database session
-        id: ID of the audit to update
-        audit_data: AuditUpdate model with optional fields
-    
-    Returns:
-        Updated Audit object or None if not found
-    """
-    audit = session.get(Audit, id)
+def update_audit(
+    session: Session,
+    protocol: str,
+    version: str,
+    company: str,
+    audit_data: AuditUpdate
+) -> Audit | None:
+    audit = get_audit(session, protocol, version, company)
     if not audit:
         return None
-        
-    # Only update fields that are not None
-    update_data = audit_data.model_dump(exclude_unset=True)
-    for key, value in update_data.items():
-        setattr(audit, key, value)
-    
-    # Update last_updated timestamp
+
+    audit.url = audit_data.url
     audit.last_updated = datetime.now()
     
+    session.add(audit)
     session.commit()
     session.refresh(audit)
     return audit

@@ -4,16 +4,17 @@ from typing import Optional
 
 class ContractBase(SQLModel):
     """Base model with common fields"""
-    address: str
+    address: str = Field(primary_key=True)
     protocol: str
     version: str
 
 class Contract(ContractBase, table=True):
     """Database model for contracts"""
-    id: int | None = Field(default=None, primary_key=True)
-    address: str = Field(index=True)
     date_added: datetime = Field(default_factory=datetime.now)
     last_updated: datetime = Field(default_factory=datetime.now)
+
+    class Config:
+        table_name = "contract"
 
 class ContractCreate(ContractBase):
     """Request model for creating contracts"""
@@ -26,7 +27,6 @@ class ContractUpdate(SQLModel):
 
 class ContractResponse(ContractBase):
     """Response model for contract operations"""
-    id: int
     date_added: datetime
     last_updated: datetime
 

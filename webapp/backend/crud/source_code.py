@@ -4,7 +4,7 @@ from sqlmodel import Session, select
 from models.source_code import SourceCode, SourceCodeCreate, SourceCodeUpdate
 
 def create_source_code(session: Session, source_code: SourceCodeCreate) -> SourceCode:
-    db_source_code = SourceCode.from_orm(source_code)
+    db_source_code = SourceCode(**source_code.model_dump())
     session.add(db_source_code)
     session.commit()
     session.refresh(db_source_code)
@@ -44,9 +44,8 @@ def update_source_code(
     if not db_source_code:
         return None
     
-    if source_code_update.link is not None:
-        db_source_code.link = source_code_update.link
-        db_source_code.last_updated = datetime.now()
+    db_source_code.url = source_code_update.url
+    db_source_code.last_updated = datetime.now()
         
     session.add(db_source_code)
     session.commit()
