@@ -8,7 +8,12 @@ from models.contract import (
 )
 from services.contract_service import ContractService
 from core.database import get_session
-from schemas.contract import ContractAuditCheckResponse, ContractSourceCodeResponse
+from schemas.contract import (
+    ContractAuditCheckResponse, 
+    ContractSourceCodeResponse,
+    ContractAuditCreate,
+    ContractSourceCodeCreate
+)
 from schemas.response import ErrorResponse
 
 router = APIRouter(
@@ -196,3 +201,85 @@ async def get_contract_source_code(
     """
     result = await service.get_contract_source_code(address)
     return result
+
+@router.post(
+    "/{address}/audits",
+    response_model=ContractAuditCheckResponse,
+    status_code=status.HTTP_201_CREATED,
+    responses={
+        404: {
+            "model": ErrorResponse,
+            "description": "Contract not found"
+        },
+        400: {
+            "model": ErrorResponse,
+            "description": "Audit already exists"
+        },
+        500: {
+            "model": ErrorResponse,
+            "description": "Internal server error"
+        },
+    },
+    summary="Add audit to contract",
+    description="Add a new audit report for a contract using its protocol and version.",
+)
+async def add_contract_audit(
+    address: str,
+    audit_data: ContractAuditCreate,
+    service: ContractService = Depends(get_contract_service),
+):
+    """
+    Add a new audit for a contract.
+    
+    Args:
+        address: The contract address
+        audit_data: Audit details including company and URL
+        
+    Returns:
+        Response containing:
+        - contract: Contract details
+        - audits: List containing the new audit
+    """
+    result = await service.add_contract_audit(address, audit_data)
+    return ContractAuditCheckResponse(**result)
+
+@router.post(
+    "/{address}/source_code",
+    response_model=ContractSourceCodeResponse,
+    status_code=status.HTTP_201_CREATED,
+    responses={
+        404: {
+            "model": ErrorResponse,
+            "description": "Contract not found"
+        },
+        400: {
+            "model": ErrorResponse,
+            "description": "Source code already exists"
+        },
+        500: {
+            "model": ErrorResponse,
+            "description": "Internal server error"
+        },
+    },
+    summary="Add source code to contract",
+    description="Add source code repository URL for a contract using its protocol and version.",
+)
+async def add_contract_source_code(
+    address: str,
+    source_data: ContractSourceCodeCreate,
+    service: ContractService = Depends(get_contract_service),
+):
+    """
+    Add source code for a contract.
+    
+    Args:
+        address: The contract address
+        source_data: Source code details including URL
+        
+    Returns:
+        Response containing:
+        - contract: Contract details
+        - source_code: Added source code details
+    """
+    result = await service.add_contract_source_code(address, source_data)
+    return ContractSourceCodeResponse(**result)

@@ -1,9 +1,13 @@
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import IntegrityError
 from models.contract import Contract, ContractCreate, ContractUpdate
 import crud.contract as crud
 import crud.audit as audit_crud
 import crud.source_code as source_code_crud
+from schemas.contract import ContractAuditCreate, ContractSourceCodeCreate
+from models.audit import AuditCreate
+from models.source_code import SourceCodeCreate
 
 class ContractService:
     def __init__(self, session: Session):
@@ -90,3 +94,63 @@ class ContractService:
             "contract": contract,
             "source_code": source_code
         }
+    
+    async def add_contract_audit(self, address: str, audit_data: ContractAuditCreate) -> dict:
+        """Add audit for a contract"""
+        contract = await self.get_contract(address)
+        
+        try:
+            # Create new audit
+            audit_create = AuditCreate(
+                protocol=contract.protocol,
+                version=contract.version,
+                company=audit_data.company,
+                url=audit_data.url
+            )
+            
+            audit = audit_crud.create_audit(self.session, audit_create)
+            
+            return {
+                "contract": contract,
+                "audits": [audit]
+            }
+        except IntegrityError as e:
+            raise HTTPException(
+                status_code=400,
+                detail=str(e.orig)
+            )
+        except Exception as e:
+            raise HTTPException(
+                status_code=500,
+                detail=str(e)
+            )
+
+    async def add_contract_source_code(self, address: str, source_data: ContractSourceCodeCreate) -> dict:
+        """Add source code for a contract"""
+        contract = await self.get_contract(address)
+        
+        try:
+            # Create new source code
+            source_create = SourceCodeCreate(
+                protocol=contract.protocol,
+                version=contract.version,
+                url=source_data.url
+            )
+            
+            source = source_code_crud.create_source_code(self.session, source_create)
+            
+            return {
+                "contract": contract,
+                "source_code": source
+            }
+        except IntegrityError as e:
+            self.session.rollback()
+            raise HTTPException(
+                status_code=400,
+                detail=str(e.orig)
+            )
+        except Exception as e:
+            raise HTTPException(
+                status_code=500,
+                detail= "Internal server error: " + str(e)
+            )

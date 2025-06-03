@@ -13,3 +13,12 @@ class ContractSourceCodeResponse(BaseModel):
     """Response model for contract source code endpoint"""
     contract: ContractResponse
     source_code: SourceCodeResponse
+
+class ContractAuditCreate(BaseModel):
+    """Request model for adding audit to contract"""
+    company: str
+    url: str
+
+class ContractSourceCodeCreate(BaseModel):
+    """Request model for adding source code to contract"""
+    url: str
