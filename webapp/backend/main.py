@@ -54,7 +54,6 @@ app.include_router(audit.router)
 app.include_router(contract.router)
 app.include_router(repository.router)
 
-
 @app.get("/")
 async def root():
     return {

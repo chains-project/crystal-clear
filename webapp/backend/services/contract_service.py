@@ -16,6 +16,10 @@ class ContractService:
     async def create_contract(self, contract_data: ContractCreate) -> Contract:
         """Create a new contract"""
         try:
+            # Convert empty string to None for version
+            if contract_data.version == "":
+                contract_data.version = None
+  
             return crud.create_contract(self.session, contract_data)
         except Exception as e:
             raise HTTPException(

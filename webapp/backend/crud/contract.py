@@ -60,7 +60,9 @@ def get_contracts(
     
     if protocol:
         stmt = stmt.where(Contract.protocol == protocol)
-    if version:
+    if version is not None:
         stmt = stmt.where(Contract.version == version)
+    else:
+        stmt = stmt.where(Contract.version.is_(None))
     
     return session.exec(stmt).all()

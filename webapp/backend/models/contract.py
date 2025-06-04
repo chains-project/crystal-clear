@@ -5,8 +5,8 @@ from typing import Optional
 class ContractBase(SQLModel):
     """Base model with common fields"""
     address: str = Field(primary_key=True)
-    protocol: str
-    version: str
+    protocol: str = Field(index=True)
+    version: Optional[str] = Field(default=None, index=True)
 
 class Contract(ContractBase, table=True):
     """Database model for contracts"""
