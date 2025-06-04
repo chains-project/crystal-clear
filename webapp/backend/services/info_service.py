@@ -93,7 +93,6 @@ def get_verification_data(address: str) -> Optional[Dict[str, str]]:
             raise NotFoundError(f"No verification information found for {address}")
 
         verification_info = response.json()
-        # print(verification_info)
         if not verification_info or verification_info.get("match") == "null":
             raise NotFoundError(f"No verification information found for {address}")
         return verification_info

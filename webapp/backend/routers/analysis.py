@@ -89,7 +89,7 @@ async def get_contract_dependencies(
     summary="Get contract risk assessment",
     description="Calculate and return the risk assessment for a given contract address.",
 )
-async def get_contract_risk(address: str):
+async def get_contract_risk(address: str, session: Session = Depends(get_session)):
     """
     Get the risk assessment for a contract.
 
@@ -97,7 +97,7 @@ async def get_contract_risk(address: str):
     """
     request = ContractRiskRequest(address=address)
 
-    risk_data = calculate_contract_risk(address=request.address)
+    risk_data = await calculate_contract_risk(request.address, session)
 
     return ContractRiskResponse(
         address=request.address,
