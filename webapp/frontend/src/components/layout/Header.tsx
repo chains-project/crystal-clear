@@ -1,43 +1,35 @@
-import React, { useState } from "react";
-import { handleDefaultAnalyze, getDefaultBlockRange } from "@/utils/defaultAnalyze";
-import type { CustomSubmitEvent } from "@/utils/defaultAnalyze";
-import { filterOptions } from "@/utils/popularContracts";
-import '../../App.css';
+import React, { useState, useEffect } from "react";
+import { isAddress } from "ethers";
 import { Link, useNavigate } from "react-router";
+
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { useLocalAlert } from "@/components/ui/local-alert";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select"
-import {
-    Popover,
-    PopoverContent,
-    PopoverTrigger,
-} from "@/components/ui/popover"
-import { AddressInput } from "@/components/common/AddressInput";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 
-// Define TypeScript interfaces for props and other data structures
+import { AddressInput } from "@/components/common/AddressInput";
+import { filterOptions } from "@/utils/popularContracts";
+import { validateBlockRange, handleBlockRangeTypeChange, type BlockRangeType } from "@/utils/blockRange";
+import { handleDefaultAnalyze, getDefaultBlockRange } from "@/utils/defaultAnalyze";
+import { errorManager } from "@/utils/errorManager";
+import { getDeploymentInfo, getLatestBlock, getApiAvailability } from "@/utils/queries";
+import type { CustomSubmitEvent } from "@/utils/defaultAnalyze";
+
+import '../../App.css';
+
+
+
 interface HeaderProps {
     inputAddress: string;
-    setInputAddress: (address: string) => void;
+    setInputAddress: (address: string, isValid?: boolean) => void;
     fromBlock: string;
     setFromBlock: (block: string) => void;
     toBlock: string;
     setToBlock: (block: string) => void;
     handleSubmit: (e: React.FormEvent | CustomSubmitEvent) => void;
 }
-
-// interface BlockRangeOption {
-//     label: string;
-//     days: number;
-// }
 
 export default function Header({
     inputAddress,
@@ -49,136 +41,34 @@ export default function Header({
     handleSubmit,
 }: HeaderProps) {
 
+    const [selectedFilter, setSelectedFilter] = useState<string>("");
+    const [blockRangeType, setBlockRangeType] = useState<BlockRangeType>("deep");
+
     const [lastSelectedRange, setLastSelectedRange] = useState<number | null>(
         null,
     );
-    const [showCustomBlockRange, setShowCustomBlockRange] =
-        useState<boolean>(false);
-
-    // Remove the filterOptions useState and use the imported constant directly
-    const [selectedFilter, setSelectedFilter] = useState<string>("");
-
-    // Add state for radio selection
-    const [blockRangeType, setBlockRangeType] = useState<string>("deep");
-
-    // Replace the local state with the hook
-    const { showLocalAlert } = useLocalAlert();
-
-    // Add navigate function from React Router
+    const [apiAvailability, setApiAvailability] = useState<boolean>(true);
     const navigate = useNavigate();
+    const { setError } = errorManager();
 
-    // Function to handle preset block range selection
-    const handleBlockRangeSelect = async (blocks: number): Promise<void> => {
-        try {
-            // Check if the same range is clicked again (toggle behavior)
-            if (lastSelectedRange === blocks) {
-                // Clear the block range inputs
-                setFromBlock("");
-                setToBlock("");
-                setLastSelectedRange(null);
-                return;
-            }
+    const [isValid, setIsValid] = useState<boolean>(true);
 
-            // TODO: Get the block range from the API
-            const response = await fetch(
-                `http://localhost:8000/info/block-latest`,
-            );
-            const data = await response.json();
-            const { from_block, to_block } = data;
+    const [latestBlockNumber, setLatestBlockNumber] = useState<number | null>(null);
 
-            setFromBlock(from_block.toString());
-            setToBlock(to_block.toString());
-            setLastSelectedRange(blocks);
+    // Check if the API is available 
+    useEffect(() => {
+        (async () => {
+            const available = await getApiAvailability();
+            setApiAvailability(available);
+            console.log("apiAvailability in homepage", apiAvailability);
 
-            // Show the custom block range when a preset is selected
-            setShowCustomBlockRange(true);
+            const latestBlock = await getLatestBlock(apiAvailability);
+            setLatestBlockNumber(latestBlock);
+            console.log("latestBlockNumber", latestBlock);
+        })();
+    }, []);
 
-            // Automatically submit when any day button is clicked and there's an address
-            if (inputAddress) {
-                // Update URL with the new block range
-                updateUrlWithParams(inputAddress, from_block.toString(), to_block.toString());
 
-                // Create a new event and pass the block range data
-                const event = new CustomEvent("submit") as unknown as CustomSubmitEvent;
-                // Add block range data to the event
-                event.blockRange = {
-                    fromBlock: from_block,
-                    toBlock: to_block,
-                };
-                handleSubmit(event);
-            }
-        } catch (error) {
-            console.error("Error setting block range:", error);
-        }
-    };
-
-    // Function to handle from block input changes with validation
-    const handleFromBlockChange = (
-        e: React.ChangeEvent<HTMLInputElement>,
-    ): void => {
-        const value = e.target.value;
-
-        // Remove commas and other non-numeric characters
-        const cleanedValue = value.replace(/[^0-9]/g, "");
-
-        setFromBlock(cleanedValue);
-    };
-
-    // Function to handle to block input changes with validation
-    const handleToBlockChange = (
-        e: React.ChangeEvent<HTMLInputElement>,
-    ): void => {
-        const value = e.target.value;
-
-        // Remove commas and other non-numeric characters
-        const cleanedValue = value.replace(/[^0-9]/g, "");
-
-        setToBlock(cleanedValue);
-    };
-
-    // Update validateAndSubmit to also update URL
-    const validateAndSubmit = (e: React.FormEvent): void => {
-        e.preventDefault();
-
-        // Check if inputs are valid
-        let isValid = true;
-        let errorMessage = "";
-
-        // Validate address (basic check)
-        if (!inputAddress) {
-            isValid = false;
-            errorMessage = "Please enter a contract address.";
-        }
-
-        // Validate block numbers (if provided)
-        if (fromBlock && !/^\d+$/.test(fromBlock)) {
-            isValid = false;
-            errorMessage = "From Block must contain only numbers.";
-        }
-
-        if (toBlock && !/^\d+$/.test(toBlock)) {
-            isValid = false;
-            errorMessage = "To Block must contain only numbers.";
-        }
-
-        // If validation passes, call the original handleSubmit and update URL
-        if (isValid) {
-            // Create a new event with block range data
-            const newEvent = { ...e } as CustomSubmitEvent;
-            newEvent.blockRange = {
-                fromBlock: fromBlock ? parseInt(fromBlock) : null,
-                toBlock: toBlock ? parseInt(toBlock) : null,
-            };
-
-            // Update URL with query parameters
-            updateUrlWithParams(inputAddress, fromBlock, toBlock);
-
-            // Call the original handleSubmit
-            handleSubmit(newEvent);
-        } else {
-            showLocalAlert(errorMessage);
-        }
-    };
 
     // Function to update URL with address and block parameters
     const updateUrlWithParams = (address: string, from?: string, to?: string): void => {
@@ -193,94 +83,114 @@ export default function Header({
         navigate(url, { replace: true });
     };
 
-    // Function to handle filter selection - updated to fill search bar
-    const handleFilterChange = (value: string): void => {
-        // Find the selected filter option to get its label
-        const selectedOption = filterOptions.find(
-            (option) => option.value === value,
-        );
-        if (selectedOption) {
-            setSelectedFilter(value);
 
-            // If a value is provided, fill it into the contract address search bar
-            if (value) {
-                setInputAddress(value);
-            }
-        }
+    const validateForm = (fromBlock: string, toBlock: string): { valid: boolean; error?: string } => {
+        if (!inputAddress || inputAddress.trim() === "") return { valid: false, error: "Please enter a contract address." };
+        if (!isAddress(inputAddress)) return { valid: false, error: "Invalid Ethereum address." };
+
+        if (fromBlock && !/^\d+$/.test(fromBlock)) return { valid: false, error: "From Block must contain only numbers." };
+        if (toBlock && !/^\d+$/.test(toBlock)) return { valid: false, error: "To Block must contain only numbers." };
+
+        console.log("inputAddress", inputAddress, typeof inputAddress);
+        console.log("fromBlockinisFormValid", fromBlock, typeof fromBlock);
+        console.log("toBlockinisFormValid", toBlock, typeof toBlock);
+
+        const { valid: rangeValid, reason } = validateBlockRange(fromBlock, toBlock);
+        if (!rangeValid) return { valid: false, error: reason || "Invalid block range." };
+
+        return { valid: true };
     };
 
 
-    // Function to handle block range type selection
-    const handleBlockRangeTypeChange = async (e: React.ChangeEvent<HTMLInputElement>): Promise<void> => {
-        const newType = e.target.value;
-        setBlockRangeType(newType);
 
-        // If selecting a preset option, automatically fetch the block range
-        if (newType === "deep") {
-            // Use the existing function for consistency
-            await handleBlockRangeSelect(1);
-        } else if (newType === "ultimate") {
-            await handleBlockRangeSelect(7);
-        } else {
-            // For custom, just clear the fields if they contain preset values
-            if (lastSelectedRange !== null) {
-                setFromBlock("");
-                setToBlock("");
-                setLastSelectedRange(null);
-            }
+    // Function to handle from block input changes with validation
+    const handleBlockInputChange = (
+        e: React.ChangeEvent<HTMLInputElement>,
+        setter: (block: string) => void
+    ): void => {
+        const cleanedValue = e.target.value.replace(/[^0-9]/g, "");
+        setter(cleanedValue);
+    };
+
+    const fetchDeploymentInfo = async (): Promise<boolean> => {
+        try {
+            await getDeploymentInfo(inputAddress, apiAvailability ?? false, (msg) => setError("api", msg));
+            return true;
+        } catch (err) {
+            setError("api", "Failed to fetch deployment information.");
+            return false;
         }
     };
 
-    // Update analyzeWithCurrentSettings to also update URL
-    const analyzeWithCurrentSettings = (e: React.MouseEvent | React.FormEvent): void => {
-        // Check if address is empty and show alert if needed
-        if (!inputAddress) {
-            showLocalAlert("Please enter a contract address.");
+    const submitWithBlockRange = async (e: React.FormEvent | CustomSubmitEvent) => {
+        e.preventDefault();
+
+        const { valid, error } = validateForm(fromBlock, toBlock);
+        console.log("valid", valid, "error", error);
+        if (!valid) {
+            setError("form", error || "Invalid input.");
             return;
         }
 
-        // Update URL with query parameters
-        updateUrlWithParams(inputAddress, fromBlock, toBlock);
+        const ready = await fetchDeploymentInfo();
+        if (!ready) return;
 
-        // Create a synthetic event with preventDefault
-        const syntheticEvent = {
-            ...e,
-            preventDefault: () => { },
-        };
-
-        // Create a custom event with block range
-        const customEvent = syntheticEvent as CustomSubmitEvent;
+        const customEvent = { ...e, preventDefault: () => { } } as CustomSubmitEvent;
         customEvent.blockRange = {
             fromBlock: fromBlock ? parseInt(fromBlock) : null,
             toBlock: toBlock ? parseInt(toBlock) : null,
         };
-
-        // Call handleSubmit directly with our custom event
+        updateUrlWithParams(inputAddress, fromBlock, toBlock);
         handleSubmit(customEvent);
+
+
+
     };
 
-    // handleDefaultAnalyzeClick is used to handle the default analyze button click and update the URL with the default block range
     const handleDefaultAnalyzeClick = async (): Promise<void> => {
-        if (!inputAddress) {
-            showLocalAlert("Please enter a contract address.");
+        if (!latestBlockNumber) return;
+
+        console.log("latestBlockNumber", latestBlockNumber);
+        console.log("fromBlock", fromBlock);
+        console.log("toBlock", toBlock);
+
+        const { valid, error } = validateForm(fromBlock, toBlock);
+        if (!valid) {
+            setError("form", error || "Invalid input.");
             return;
         }
 
-        // Get default block range before updating URL
-        const blockRange = await getDefaultBlockRange();
-        if (blockRange) {
-            // Update URL with the default block range
-            updateUrlWithParams(inputAddress, blockRange.fromBlock.toString(), blockRange.toBlock.toString());
-        }
+
+        const blockRange = await getDefaultBlockRange(setError, latestBlockNumber, apiAvailability);
+        if (!blockRange) return;
+
+        setFromBlock(blockRange.fromBlock.toString());
+        setToBlock(blockRange.toBlock.toString());
+        updateUrlWithParams(inputAddress, blockRange.fromBlock.toString(), blockRange.toBlock.toString());
+
+        const ready = await fetchDeploymentInfo();
+        if (!ready) return;
 
         await handleDefaultAnalyze(
             inputAddress,
             setFromBlock,
             setToBlock,
             handleSubmit,
-            showLocalAlert
+            (msg) => setError("api", msg),
+            latestBlockNumber,
+            apiAvailability
         );
     };
+
+    const handleFilterChange = (value: string): void => {
+        const selectedOption = filterOptions.find(opt => opt.value === value);
+        if (!selectedOption) return;
+        setSelectedFilter(value);
+        setInputAddress(value);
+    };
+
+
+
 
     return (
         <div>
@@ -335,9 +245,11 @@ export default function Header({
                     </div>
                 </Link>
 
+
+
                 {/* Search Form - RIGHT ALIGNED */}
                 <form
-                    onSubmit={validateAndSubmit}
+                    onSubmit={submitWithBlockRange}
                     style={{
                         display: "flex",
                         alignItems: "center",
@@ -374,7 +286,7 @@ export default function Header({
                                 <SelectItem
                                     key={option.value}
                                     value={option.value}
-                                    className="text-sm hover:bg-[#7469B6] hover:text-white focus:bg-[#7469B6] focus:text-white rounded-none "
+                                    className="text-xs hover:bg-[#7469B6] hover:text-white focus:bg-[#7469B6] focus:text-white rounded-none  "
                                     style={{ padding: "4px 8px" }}
                                 >
                                     {option.label}
@@ -388,7 +300,7 @@ export default function Header({
                         value={inputAddress}
                         onChange={(value) => {
                             setInputAddress(value);
-                            // Reset dropdown selection if user is typing manually
+
                             if (selectedFilter && value !== filterOptions.find(opt => opt.value === selectedFilter)?.value) {
                                 setSelectedFilter("");
                             }
@@ -407,18 +319,20 @@ export default function Header({
                     >
                         <Button
                             type="button"
+                            variant="outline"
                             onClick={() => {
                                 if (!inputAddress || inputAddress.trim() === "") {
-                                    showLocalAlert("Please enter a contract address.");
+                                    setError("form", "Please enter a contract address.");
                                     return;
                                 }
+
                                 handleDefaultAnalyzeClick();
                             }}
                             className="border border-black rounded-none h-8 text-sm"
                             style={{
                                 height: "32px",
                                 backgroundColor: "#efefef",
-                                boxShadow: "inset -1px -1px #0a0a0a, inset 1px 1px #fff, inset -2px -2px grey, inset 2px 2px #dfdfdf"
+                                boxShadow: "inset -0.5px -0.5px #0a0a0a, inset 0.5px 0.5px #fff, inset -1px -1px grey, inset 1px 1px #dfdfdf"
                             }}
                         >
                             <span style={{ fontFamily: "ms_sans_serif", color: "#000080", fontWeight: "bold" }}>Analyze</span>
@@ -433,7 +347,7 @@ export default function Header({
                                         height: "32px",
                                         width: "32px",
                                         backgroundColor: "#efefef",
-                                        boxShadow: "inset -1px -1px #0a0a0a, inset 1px 1px #fff, inset -2px -2px grey, inset 2px 2px #dfdfdf"
+                                        boxShadow: "inset -0.5px -0.5px #0a0a0a, inset 0.5px 0.5px #fff, inset -1px -1px grey, inset 1px 1px #dfdfdf"
                                     }}
                                 >
                                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -480,10 +394,24 @@ export default function Header({
                                     <div style={{ display: "flex", flexDirection: "column", gap: "6px", alignItems: "flex-start", marginLeft: "10px" }}>
                                         <RadioGroup
                                             value={blockRangeType}
-                                            onValueChange={(value) => {
-                                                const event = { target: { value } } as React.ChangeEvent<HTMLInputElement>;
-                                                handleBlockRangeTypeChange(event);
+                                            onValueChange={(value: BlockRangeType) => {
+                                                console.log("Block range type selected:", value);
+                                                handleBlockRangeTypeChange(
+                                                    value,
+                                                    setBlockRangeType,
+                                                    setFromBlock,
+                                                    setToBlock,
+                                                    setLastSelectedRange,
+                                                    lastSelectedRange,
+                                                    inputAddress,
+                                                    updateUrlWithParams,
+                                                    handleSubmit,
+                                                    (msg: string) => setError("api", msg),
+                                                    apiAvailability
+                                                );
+                                                console.log("handleBlockRangeTypeChange called");
                                             }}
+
                                             className="space-y-3"
                                         >
                                             <div className="flex items-center space-x-2 tooltip-container hover:bg-[#c9e0be] p-1.5 rounded-sm cursor-pointer w-full">
@@ -493,7 +421,7 @@ export default function Header({
                                                         <Label htmlFor="deep" className="cursor-pointer">Deep</Label>
                                                     </div>
                                                     <div className="absolute left-0 -top-8 hidden group-hover:block bg-black text-white rounded px-6 py-3 z-50 w-auto whitespace-nowrap shadow-lg backdrop-blur-sm border border-white/10" style={{ fontSize: '12px', paddingLeft: '0.5rem', paddingRight: '0.5rem', paddingTop: '0.2rem', paddingBottom: '0.2rem' }}>
-                                                        (WIP) 1 day of transactions
+                                                        (WIP) Fast Mode (50 blocks)
                                                     </div>
                                                 </div>
                                             </div>
@@ -505,7 +433,7 @@ export default function Header({
                                                         <Label htmlFor="ultimate" className="cursor-pointer">Ultimate</Label>
                                                     </div>
                                                     <div className="absolute left-0 -top-8 hidden group-hover:block bg-black text-white rounded px-6 py-3 z-50 w-auto whitespace-nowrap shadow-lg backdrop-blur-sm border border-white/10" style={{ fontSize: '12px', paddingLeft: '0.5rem', paddingRight: '0.5rem', paddingTop: '0.2rem', paddingBottom: '0.2rem' }}>
-                                                        (WIP) 7 days of transactions
+                                                        (WIP) Secure Mode (All lifetime blocks)
                                                     </div>
                                                 </div>
                                             </div>
@@ -514,7 +442,7 @@ export default function Header({
                                                 <div className="relative group">
                                                     <div className="flex items-center space-x-3">
                                                         <RadioGroupItem value="custom" id="custom" />
-                                                        <Label htmlFor="custom" className="cursor-pointer">Custom Block Range</Label>
+                                                        <Label htmlFor="custom" className="cursor-pointer" >Custom Block Range</Label>
                                                     </div>
                                                     <div className="absolute left-0 -top-8 hidden group-hover:block bg-black text-white rounded px-6 py-3 z-50 w-auto whitespace-nowrap shadow-lg backdrop-blur-sm border border-white/10" style={{ fontSize: '12px', paddingLeft: '0.5rem', paddingRight: '0.5rem', paddingTop: '0.2rem', paddingBottom: '0.2rem' }}>
                                                         Put your own block numbers
@@ -529,7 +457,7 @@ export default function Header({
                                         <Input
                                             type="text"
                                             value={fromBlock}
-                                            onChange={handleFromBlockChange}
+                                            onChange={(e) => handleBlockInputChange(e, setFromBlock)}
                                             placeholder="From Block"
                                             className="h-8 text-xs flex-1 border border-black rounded-none"
                                             style={{
@@ -541,7 +469,7 @@ export default function Header({
                                         <Input
                                             type="text"
                                             value={toBlock}
-                                            onChange={handleToBlockChange}
+                                            onChange={(e) => handleBlockInputChange(e, setToBlock)}
                                             placeholder="To Block"
                                             className="h-8 text-xs flex-1 border border-black rounded-none"
                                             style={{
@@ -555,7 +483,7 @@ export default function Header({
                                     {/* Submit button*/}
                                     <Button
                                         type="button"
-                                        onClick={(e) => analyzeWithCurrentSettings(e)}
+                                        onClick={(e) => submitWithBlockRange(e)}
                                         style={{
                                             backgroundColor: "#efefef",
                                             marginTop: "2px",

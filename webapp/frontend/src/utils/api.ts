@@ -1,28 +1,48 @@
-import { useLocalAlert } from "@/components/ui/local-alert";
+// for fetching data from the API
 
-/**
- * Utility functions for API interactions
- */
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL as string;
 
-/**
- * Checks if the API is available by making a request to the health endpoint
- * @returns Promise<boolean> - true if API is available, false otherwise
- */
-export const checkApiAvailability = async (): Promise<boolean> => {
+export default API_BASE_URL;
+
+
+export const apiFetch = async <T>(
+    path: string,
+    alert: (msg: string) => void,
+    options: RequestInit = {}
+): Promise<T> => {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000);
+    console.log(`Calling API with path: ${path}`);
+    console.log(`API_BASE_URL: ${API_BASE_URL}`);
+
     try {
-        const response = await fetch('http://localhost:8000/health', {
-            method: 'GET',
+        const response = await fetch(`${API_BASE_URL}${path}`, {
             headers: { 'Content-Type': 'application/json' },
-            // Set a short timeout to avoid long waits
-            signal: AbortSignal.timeout(12000),
-            mode: 'cors'
+            signal: controller.signal,
+            ...options,
         });
-        console.log("API availability check response:", response);
-        return response.ok;
+
+        if (!response.ok) {
+            console.log("response", response);
+            console.log("response.status", response.status);
+            const errorText = await response.text();
+            alert(errorText || `Request failed with status ${response.status}`);
+            throw new Error(errorText || `Request failed with status ${response.status}`);
+        }
+
+        return await response.json();
     } catch (error) {
-        console.error("API availability check failed:", error);
-        const { showLocalAlert } = useLocalAlert();
-        showLocalAlert("API is not available at port 8000. Please check if the API is running.");
-        return false;
+        if (error instanceof DOMException && error.name === 'AbortError') {
+            alert('Request timed out.');
+        } else if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
+            alert('Cannot connect to the backend. Is it running at http://localhost:8000?');
+        } else if (error instanceof Error) {
+            alert(error.message);
+        } else {
+            alert('Unknown error occurred.');
+        }
+        throw error;
+    } finally {
+        clearTimeout(timeoutId);
     }
 };

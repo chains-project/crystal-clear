@@ -1,72 +1,104 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useLocation, useNavigate } from "react-router";
 import GraphLayout from "../../components/graph/GraphLayout";
-import { useLocalAlert } from "@/components/ui/local-alert";
 import { Button } from "@/components/ui/button";
 import { getDefaultBlockRange } from "@/utils/defaultAnalyze";
 import { popularContracts } from "@/utils/popularContracts";
 import { AddressInput } from "@/components/common/AddressInput";
-
+import { getLatestBlock, getApiAvailability } from "@/utils/queries";
+import { validateBlockRange } from "@/utils/blockRange";
+import { errorManager } from "@/utils/errorManager";
 // load sample graph data from json file
 import SAMPLE_GRAPH_DATA from "./home_graph_eg.json";
-
+import { isAddress } from "ethers";
 
 export default function HomePage() {
     const [inputAddress, setInputAddress] = useState<string>("");
     const [highlightAddress, setHighlightAddress] = useState<string | null>(null);
-    const [loading] = useState<boolean>(false);
-    const { showLocalAlert } = useLocalAlert();
+    const [apiAvailability, setApiAvailability] = useState<boolean | undefined>(undefined);
+    const [loading, setLoading] = useState<boolean>(false);
+    const isValid = inputAddress === "" || isAddress(inputAddress);
+
+    const { errors, setError, clearError } = errorManager();
     const location = useLocation();
     const navigate = useNavigate();
 
+    const latestBlockNumber = getLatestBlock(apiAvailability);
+
+
+
+    // --- Effect: Load API health and query params ---
     useEffect(() => {
-        const searchParams = new URLSearchParams(location.search);
-        const addressParam = searchParams.get('address');
-        if (addressParam) {
-            setInputAddress(addressParam);
-        }
+        (async () => {
+            const available = await getApiAvailability();
+            setApiAvailability(available);
+            console.log("apiAvailability in homepage", available);
+        })();
+
+        const addressParam = new URLSearchParams(location.search).get("address");
+        if (addressParam) setInputAddress(addressParam);
     }, [location]);
 
-    // Handle form submission
+
+    // --- Handle form submission ---
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        clearError("form");
 
-        if (!inputAddress || inputAddress.trim() === "") {
-            showLocalAlert("Please enter a contract address.");
-            return;
-        }
+        if (loading) return;
+        setLoading(true);
 
         try {
-            // Use getDefaultBlockRange to set the from_block and to_block
-            const { fromBlock, toBlock } = await getDefaultBlockRange();
-            console.log("fromBlock", fromBlock);
-            console.log("toBlock", toBlock);
+            if (!inputAddress.trim()) {
+                return setError("form", "Please enter a contract address.");
+            }
 
-            // Navigate to the graph page with all necessary parameters
-            navigate(`/graph?address=${inputAddress}&from_block=${fromBlock}&to_block=${toBlock}`);
+            if (!isAddress(inputAddress)) {
+                return setError("form", "Invalid Ethereum address.");
+            }
 
-        } catch (error) {
-            console.error("Error during submission:", error);
-            showLocalAlert("An error occurred. Please try again.");
-            throw error;
+            if (!apiAvailability) {
+                return setError("api", "API is not available. Please refresh the page.");
+            }
+
+            try {
+                const resolvedLatestBlock = await latestBlockNumber;
+                if (!resolvedLatestBlock) {
+                    return setError("api", "Latest block number is not available.");
+                }
+
+                const { fromBlock, toBlock } = await getDefaultBlockRange(setError, resolvedLatestBlock, apiAvailability);
+                const { valid, reason } = validateBlockRange(fromBlock, toBlock);
+                if (!valid) {
+                    return setError("form", reason || "Invalid block range.");
+                }
+
+                navigate(`/graph?address=${inputAddress}&from_block=${fromBlock}&to_block=${toBlock}`);
+
+            } catch (error) {
+                return setError("api", "Failed to fetch latest block number.");
+            }
+
+
+
+        }
+        finally {
+            setLoading(false);
         }
     };
 
-    // Handle node click for the demo graph using useCallback
-    const handleNodeClick = React.useCallback((node: any) => {
-        // remove the hightlight address in homepage graph
+
+    // --- Handle popular address selection ---
+    const handleAddressSelect = (address: string) => {
+        setInputAddress(prev => (prev === address ? "" : address));
+    };
+
+    // --- Handle node click in demo graph ---
+    const handleNodeClick = useCallback(() => {
         setHighlightAddress(null);
     }, []);
 
-    // Function to handle quick address selection
-    const handleAddressSelect = (address: string, name: string): void => {
-        // If the address is already selected, clear it (unselect)
-        if (inputAddress === address) {
-            setInputAddress("");
-        } else {
-            setInputAddress(address);
-        }
-    };
+
 
     return (
         <div
@@ -87,7 +119,7 @@ export default function HomePage() {
                 textAlign: "center",
                 // borderBottom: "1px solid #ddd"
             }}>
-                {/* Future navigation elements will go here */}
+                {/* TODO:Future navigation elements will go here */}
             </header>
 
             <div
@@ -112,12 +144,12 @@ export default function HomePage() {
                     marginLeft: "2rem",
                     marginRight: "1rem",
                     padding: "1rem",
-                    borderRadius: "50%",
+                    // borderRadius: "50%",
                     // border: "1px solid red"
                 }}>
                     {/* Interactive sample graph */}
                     <GraphLayout
-                        jsonData={SAMPLE_GRAPH_DATA}
+                        jsonData={SAMPLE_GRAPH_DATA as GraphData}
                         highlightAddress={highlightAddress}
                         inputAddress={"0xSampleMainContract"}
                         onNodeClick={handleNodeClick}
@@ -180,7 +212,10 @@ export default function HomePage() {
                                     }}>
                                         <AddressInput
                                             value={inputAddress}
-                                            onChange={setInputAddress}
+                                            onChange={(value) => {
+                                                setInputAddress(value);
+                                                console.log("inputAddress in homepage", inputAddress);
+                                            }}
                                             placeholder="Enter contract address (0x...)"
                                             style={{
                                                 flex: 1,
@@ -242,15 +277,18 @@ export default function HomePage() {
                                                 variant="link"
                                                 type="button"
                                                 onClick={() =>
-                                                    handleAddressSelect(contract.address, contract.name)
+                                                    handleAddressSelect(contract.address)
                                                 }
                                                 style={{
                                                     padding: "6px 6px",
                                                     height: "1.75rem",
                                                     fontSize: "12px",
                                                     whiteSpace: "nowrap",
+                                                    overflow: "hidden",
+                                                    textOverflow: "ellipsis",
                                                     borderRadius: "2px",
                                                     backgroundColor: "#f0f0f0",
+                                                    color: "#2b2b2b",
                                                     // border: "1px solid #ccc",
                                                     // transition: "background-color 0.3s",
                                                 }}
