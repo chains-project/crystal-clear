@@ -220,12 +220,13 @@ def get_permissions_data(address: str) -> Dict[str, str]:
         
         permissions = get_permissions(address)
 
-        if not permissions or len(permissions) == 0:
-            raise NotFoundError(f"No permissioned functions found for {address}")
         return permissions
-    except (InputValidationError, NotFoundError) as e:
+    except InputValidationError as e:
         logger.error(f"Error: {e}")
-        raise e
+        raise
+    except ValueError as ve:
+        logger.error(f"Value error: {ve}")
+        raise NotFoundError(f"No permissions data found for {address}") from ve
     except Exception as e:
         logger.error(f"Error fetching permissions data: {e}")
         raise InternalServerError(f"Failed to get permissions data: {str(e)}") from e
