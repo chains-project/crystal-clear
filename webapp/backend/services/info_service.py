@@ -93,7 +93,6 @@ def get_verification_data(address: str) -> Optional[Dict[str, str]]:
         if response.status_code != 200 or not verification_info or verification_info.get("match") == "null":
             etherscan_url = f"https://api.etherscan.io/api?module=contract&action=getsourcecode&address={address}&apikey={settings.etherscan_api_key}"
             response = requests.get(etherscan_url)
-            print(response.json())
             if response.status_code == 200:
                 etherscan_data = response.json()["result"]
                 if len(etherscan_data) > 0 and len(etherscan_data[0].get("SourceCode")) > 0:
