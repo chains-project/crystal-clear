@@ -175,5 +175,5 @@ async def calculate_contract_risk(address: str, session: Session) -> Dict[str, A
         risk_factors["audits"] = "No audits found"
 
     risk_score = 0.1 * verification_score + 0.05 * proxy_score + 0.05 * permissions_score + 0.3 * scorecard_score + 0.5 * audits_score
-    risk_score = round(risk_score * 100)
+    risk_score = round((1-risk_score) * 100)
     return {"risk_score": risk_score, "risk_factors": risk_factors}
