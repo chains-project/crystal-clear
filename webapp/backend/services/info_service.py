@@ -89,11 +89,15 @@ def get_verification_data(address: str) -> Optional[Dict[str, str]]:
         request_url = f"https://sourcify.dev/server/v2/contract/1/{address}"
 
         response = requests.get(request_url)
-        if response.status_code != 200:
-            raise NotFoundError(f"No verification information found for {address}")
-
         verification_info = response.json()
-        if not verification_info or verification_info.get("match") == "null":
+        if response.status_code != 200 or not verification_info or verification_info.get("match") == "null":
+            etherscan_url = f"https://api.etherscan.io/api?module=contract&action=getsourcecode&address={address}&apikey={settings.etherscan_api_key}"
+            response = requests.get(etherscan_url)
+            print(response.json())
+            if response.status_code == 200:
+                etherscan_data = response.json()["result"]
+                if len(etherscan_data) > 0 and len(etherscan_data[0].get("SourceCode")) > 0:
+                    return {"address": address, "match": "match", "verifiedAt": "na"}
             raise NotFoundError(f"No verification information found for {address}")
         return verification_info
     except (InputValidationError, NotFoundError) as e:
