@@ -12,7 +12,7 @@ class Settings(BaseSettings):
     api_port: int
 
     # Request Timeout
-    request_timeout: int = 60  # seconds
+    request_timeout: int = 60 * 2  # seconds
 
     # maximum block range for analysis
     MAX_BLOCK_RANGE: int = 7000
