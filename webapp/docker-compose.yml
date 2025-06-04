@@ -11,6 +11,8 @@ services:
     restart: unless-stopped  # Automatically restart the container unless stopped manually
     depends_on:
       - db  # Ensure the database is started before the backend service
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock 
   
   # PostgreSQL Database Service
   db:
