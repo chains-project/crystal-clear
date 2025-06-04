@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
 from models.contract import (
     ContractCreate,
@@ -10,9 +10,9 @@ from services.contract_service import ContractService
 from core.database import get_session
 from schemas.contract import (
     ContractAuditCheckResponse, 
-    ContractSourceCodeResponse,
+    ContractRepositoryResponse,
     ContractAuditCreate,
-    ContractSourceCodeCreate
+    ContractRepositoryCreate
 )
 from schemas.response import ErrorResponse
 
@@ -168,8 +168,8 @@ async def get_contract_audits(
     return ContractAuditCheckResponse(**result)
 
 @router.get(
-    "/{address}/source_code",
-    response_model=ContractSourceCodeResponse,
+    "/{address}/repository",
+    response_model=ContractRepositoryResponse,
     status_code=status.HTTP_200_OK,
     responses={
         404: {
@@ -181,25 +181,25 @@ async def get_contract_audits(
             "description": "Internal server error"
         },
     },
-    summary="Get contract source code",
-    description="Fetch the source code for a contract by its address.",
+    summary="Get contract repository",
+    description="Fetch the repository for a contract by its address.",
 )
-async def get_contract_source_code(
+async def get_contract_repository(
     address: str,
     service: ContractService = Depends(get_contract_service),
 ):
     """
-    Get the source code for a contract by its address.
+    Get the repository for a contract by its address.
     
     Args:
-        address: The contract address to fetch source code for
+        address: The contract address to fetch repository for
         
     Returns:
         Response containing:
         - contract: Contract details
-        - source_code: Source code content
+        - repository: repository content
     """
-    result = await service.get_contract_source_code(address)
+    result = await service.get_contract_repository(address)
     return result
 
 @router.post(
@@ -244,8 +244,8 @@ async def add_contract_audit(
     return ContractAuditCheckResponse(**result)
 
 @router.post(
-    "/{address}/source_code",
-    response_model=ContractSourceCodeResponse,
+    "/{address}/repository",
+    response_model=ContractRepositoryResponse,
     status_code=status.HTTP_201_CREATED,
     responses={
         404: {
@@ -254,32 +254,32 @@ async def add_contract_audit(
         },
         400: {
             "model": ErrorResponse,
-            "description": "Source code already exists"
+            "description": "Repository already exists"
         },
         500: {
             "model": ErrorResponse,
             "description": "Internal server error"
         },
     },
-    summary="Add source code to contract",
-    description="Add source code repository URL for a contract using its protocol and version.",
+    summary="Add repository to contract",
+    description="Add repository repository URL for a contract using its protocol and version.",
 )
 async def add_contract_source_code(
     address: str,
-    source_data: ContractSourceCodeCreate,
+    repository_data: ContractRepositoryCreate,
     service: ContractService = Depends(get_contract_service),
 ):
     """
-    Add source code for a contract.
+    Add repository for a contract.
     
     Args:
         address: The contract address
-        source_data: Source code details including URL
+        repository_data: repository details including URL
         
     Returns:
         Response containing:
         - contract: Contract details
-        - source_code: Added source code details
+        - repository: Added repository details
     """
-    result = await service.add_contract_source_code(address, source_data)
-    return ContractSourceCodeResponse(**result)
+    result = await service.add_contract_repository(address, repository_data)
+    return ContractRepositoryResponse(**result)

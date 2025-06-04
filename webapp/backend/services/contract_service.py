@@ -4,10 +4,10 @@ from sqlalchemy.exc import IntegrityError
 from models.contract import Contract, ContractCreate, ContractUpdate
 import crud.contract as crud
 import crud.audit as audit_crud
-import crud.source_code as source_code_crud
-from schemas.contract import ContractAuditCreate, ContractSourceCodeCreate
+import crud.repository as repository_crud
+from schemas.contract import ContractAuditCreate, ContractRepositoryCreate
 from models.audit import AuditCreate
-from models.source_code import SourceCodeCreate
+from models.repository import RepositoryCreate
 
 class ContractService:
     def __init__(self, session: Session):
@@ -74,25 +74,25 @@ class ContractService:
             "audits": audits
         }
     
-    async def get_contract_source_code(self, address: str) -> dict:
-        """Get source code for a contract by address"""
+    async def get_contract_repository(self, address: str) -> dict:
+        """Get repository for a contract by address"""
         contract = await self.get_contract(address)
         
-        source_code = source_code_crud.get_source_code(
+        repository = repository_crud.get_repository(
             self.session,
             protocol=contract.protocol,
             version=contract.version
         )
 
-        if not source_code:
+        if not repository:
             raise HTTPException(
                 status_code=404, 
-                detail=f"Source code for contract {address} not found"
+                detail=f"Repository for contract {address} not found"
             )
 
         return {
             "contract": contract,
-            "source_code": source_code
+            "repository": repository
         }
     
     async def add_contract_audit(self, address: str, audit_data: ContractAuditCreate) -> dict:
@@ -125,23 +125,22 @@ class ContractService:
                 detail=str(e)
             )
 
-    async def add_contract_source_code(self, address: str, source_data: ContractSourceCodeCreate) -> dict:
-        """Add source code for a contract"""
+    async def add_contract_repository(self, address: str, repository_data: ContractRepositoryCreate) -> dict:
+        """Add repository for a contract"""
         contract = await self.get_contract(address)
         
         try:
-            # Create new source code
-            source_create = SourceCodeCreate(
+            repository_create = RepositoryCreate(
                 protocol=contract.protocol,
                 version=contract.version,
-                url=source_data.url
+                url=repository_data.url
             )
             
-            source = source_code_crud.create_source_code(self.session, source_create)
+            repository = repository_crud.create_repository(self.session, repository_create)
             
             return {
                 "contract": contract,
-                "source_code": source
+                "repository": repository
             }
         except IntegrityError as e:
             self.session.rollback()

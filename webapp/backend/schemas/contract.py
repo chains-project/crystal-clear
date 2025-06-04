@@ -1,7 +1,7 @@
 from pydantic import BaseModel
 from models.contract import ContractResponse
 from models.audit import AuditResponse
-from models.source_code import SourceCodeResponse
+from models.repository import RepositoryResponse
 from typing import List
 
 class ContractAuditCheckResponse(BaseModel):
@@ -9,16 +9,16 @@ class ContractAuditCheckResponse(BaseModel):
     contract: ContractResponse
     audits: List[AuditResponse]
 
-class ContractSourceCodeResponse(BaseModel):
-    """Response model for contract source code endpoint"""
+class ContractRepositoryResponse(BaseModel):
+    """Response model for contract repository endpoint"""
     contract: ContractResponse
-    source_code: SourceCodeResponse
+    repository: RepositoryResponse
 
 class ContractAuditCreate(BaseModel):
     """Request model for adding audit to contract"""
     company: str
     url: str
 
-class ContractSourceCodeCreate(BaseModel):
-    """Request model for adding source code to contract"""
+class ContractRepositoryCreate(BaseModel):
+    """Request model for adding repository to contract"""
     url: str

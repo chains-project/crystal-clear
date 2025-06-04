@@ -7,7 +7,7 @@ from fastapi.exceptions import HTTPException
 from core.config import settings
 from core.logging import setup_logging
 from core.database import create_db_and_tables
-from routers import analysis, health, info, audit, contract, source_code
+from routers import analysis, health, info, audit, contract, repository
 
 # Setup logging
 setup_logging()
@@ -52,7 +52,7 @@ app.include_router(analysis.router)
 app.include_router(info.router)
 app.include_router(audit.router)
 app.include_router(contract.router)
-app.include_router(source_code.router)
+app.include_router(repository.router)
 
 
 @app.get("/")
