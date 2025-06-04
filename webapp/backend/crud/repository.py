@@ -2,20 +2,34 @@ from datetime import datetime
 from typing import List, Optional
 from sqlmodel import Session, select
 from models.repository import *
+from sqlalchemy.exc import IntegrityError
 
 def create_repository(session: Session, repository: RepositoryCreate) -> Repository:
+    """Create new repository entry"""
     db_repository = Repository(**repository.model_dump())
     session.add(db_repository)
-    session.commit()
-    session.refresh(db_repository)
-    return db_repository
+    try:
+        session.commit()
+        session.refresh(db_repository)
+        return db_repository
+    except IntegrityError as e:
+        session.rollback()
+        raise ValueError("Repository with these details already exists") from e
 
 def get_repository(
     session: Session, 
     protocol: str,
-    version: str
+    version: str | None = None
 ) -> Optional[Repository]:
-    return session.get(Repository, {"protocol": protocol, "version": version})
+    """Get repository by protocol and optional version"""
+    stmt = select(Repository).where(Repository.protocol == protocol)
+    
+    if version is not None:
+        stmt = stmt.where(Repository.version == version)
+    else:
+        stmt = stmt.where(Repository.version.is_(None))
+    
+    return session.exec(stmt).first()
 
 def get_repositories(
     session: Session,
@@ -24,11 +38,12 @@ def get_repositories(
     protocol: Optional[str] = None,
     version: Optional[str] = None
 ) -> List[Repository]:
+    """Get repositories with optional filters"""
     query = select(Repository)
 
     if protocol:
         query = query.where(Repository.protocol == protocol)
-    if version:
+    if version is not None:
         query = query.where(Repository.version == version)
 
     query = query.offset(skip).limit(limit)
@@ -36,10 +51,11 @@ def get_repositories(
 
 def update_repository(
     session: Session, 
+    repository_update: RepositoryUpdate,
     protocol: str,
-    version: str, 
-    repository_update: RepositoryUpdate
+    version: str | None = None,
 ) -> Optional[Repository]:
+    """Update repository URL"""
     db_repository = get_repository(session, protocol, version)
     if not db_repository:
         return None
@@ -47,16 +63,21 @@ def update_repository(
     db_repository.url = repository_update.url
     db_repository.last_updated = datetime.now()
         
-    session.add(db_repository)
-    session.commit()
-    session.refresh(db_repository)
-    return db_repository
+    try:
+        session.add(db_repository)
+        session.commit()
+        session.refresh(db_repository)
+        return db_repository
+    except IntegrityError as e:
+        session.rollback()
+        raise ValueError("URL update failed due to uniqueness constraint") from e
 
 def delete_repository(
     session: Session, 
     protocol: str,
-    version: str
+    version: str | None = None
 ) -> bool:
+    """Delete repository entry"""
     db_repository = get_repository(session, protocol, version)
     if not db_repository:
         return False

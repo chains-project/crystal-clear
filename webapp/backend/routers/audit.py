@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlmodel import Session
 
 from core.database import get_session
@@ -9,7 +9,7 @@ from models.audit import (
     AuditListResponse
 )
 from schemas.response import ErrorResponse
-import crud.audit
+import crud.audit as crud
 
 router = APIRouter(
     prefix="/audit",
@@ -21,7 +21,7 @@ router = APIRouter(
     response_model=AuditResponse,
     status_code=status.HTTP_201_CREATED,
     responses={
-        400: {"model": ErrorResponse, "description": "Invalid input data"},
+        400: {"model": ErrorResponse, "description": "Invalid input or duplicate audit"},
         500: {"model": ErrorResponse, "description": "Internal server error"},
     },
     summary="Create a new audit entry",
@@ -32,35 +32,31 @@ async def create_audit(
 ) -> AuditResponse:
     """Create new audit entry"""
     try:
-        return crud.audit.create_audit(session, audit_data)
+        return crud.create_audit(session, audit_data)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Failed to create audit: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Failed to create audit: {str(e)}")
 
 @router.get(
-    "/{protocol}/{version}/{company}",
+    "/{protocol}/{company}",
     response_model=AuditResponse,
     responses={
         404: {"model": ErrorResponse, "description": "Audit not found"},
         500: {"model": ErrorResponse, "description": "Internal server error"},
     },
-    summary="Get audit by protocol, version and company",
+    summary="Get audit by protocol and company",
 )
 async def get_audit(
     protocol: str,
-    version: str,
     company: str,
+    version: str | None = Query(default=None, description="Optional version filter"),
     session: Session = Depends(get_session),
 ) -> AuditResponse:
     """Get specific audit entry"""
-    audit = crud.audit.get_audit(session, protocol, version, company)
+    audit = crud.get_audit(session, protocol, company, version)
     if not audit:
-        raise HTTPException(
-            status_code=404,
-            detail="Audit not found"
-        )
+        raise HTTPException(status_code=404, detail="Audit not found")
     return audit
 
 @router.get(
@@ -73,12 +69,12 @@ async def get_audit(
 )
 async def list_audits(
     protocol: str | None = None,
-    version: str | None = None,
     company: str | None = None,
+    version: str | None = Query(default=None, description="Optional version filter"),
     session: Session = Depends(get_session),
 ) -> AuditListResponse:
     """List audit entries with optional filters"""
-    audits = crud.audit.get_audits(
+    audits = crud.get_audits(
         session,
         protocol=protocol,
         version=version,
@@ -87,7 +83,7 @@ async def list_audits(
     return AuditListResponse(total=len(audits), items=audits)
 
 @router.put(
-    "/{protocol}/{version}/{company}",
+    "/{protocol}/{company}",
     response_model=AuditResponse,
     responses={
         404: {"model": ErrorResponse, "description": "Audit not found"},
@@ -98,22 +94,22 @@ async def list_audits(
 )
 async def update_audit(
     protocol: str,
-    version: str,
     company: str,
     audit_data: AuditUpdate,
+    version: str | None = Query(default=None, description="Optional version filter"),
     session: Session = Depends(get_session),
 ) -> AuditResponse:
-    """Update audit entry"""
-    audit = crud.audit.update_audit(session, protocol, version, company, audit_data)
-    if not audit:
-        raise HTTPException(
-            status_code=404,
-            detail="Audit not found"
-        )
-    return audit
+    """Update audit URL"""
+    try:
+        audit = crud.update_audit(session, audit_data, protocol, company, version)
+        if not audit:
+            raise HTTPException(status_code=404, detail="Audit not found")
+        return audit
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 @router.delete(
-    "/{protocol}/{version}/{company}",
+    "/{protocol}/{company}",
     status_code=status.HTTP_204_NO_CONTENT,
     responses={
         404: {"model": ErrorResponse, "description": "Audit not found"},
@@ -123,13 +119,10 @@ async def update_audit(
 )
 async def delete_audit(
     protocol: str,
-    version: str,
     company: str,
+    version: str | None = Query(default=None, description="Optional version filter"),
     session: Session = Depends(get_session),
 ) -> None:
     """Delete audit entry"""
-    if not crud.audit.delete_audit(session, protocol, version, company):
-        raise HTTPException(
-            status_code=404,
-            detail="Audit not found"
-        )
+    if not crud.delete_audit(session, protocol, company, version):
+        raise HTTPException(status_code=404, detail="Audit not found")
