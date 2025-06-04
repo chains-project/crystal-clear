@@ -29,7 +29,6 @@ def get_msg_sender_checks(function: Function) -> List[str]:
         ]
         return all_conditional_nodes_on_msg_sender
 
-
 def check_onwer_condition(checks, state_variables_written):
     for var in state_variables_written:
         if str(var.type) == "address":
@@ -63,7 +62,7 @@ def detect_permissions(path, mainContract, etherscan_api_key=None):
     written_variables = list(set(written_variables))
     if not written_variables:
         print("No state variables written in the contract.")
-        return False
+        return []
     res = []
     for function in contract.functions:
 
@@ -71,7 +70,6 @@ def detect_permissions(path, mainContract, etherscan_api_key=None):
             v.name for v in function.all_state_variables_written() if v.name
         ]
         msg_sender_condition = get_msg_sender_checks(function)
-
         if len(state_variables_written) > 0 and len(msg_sender_condition) > 0 and check_onwer_condition(msg_sender_condition, written_variables):
             res.append((function.name, state_variables_written, msg_sender_condition))
     cleaned_res = []
@@ -109,6 +107,10 @@ def get_permissions(address: str):
 
     Returns:
         Permissioned functions
+    
+    Raises:
+        ValueError: If no source code is found for the address
+        RuntimeError: If there's any other error fetching permissions info
     """
     try:
         res = get_contract_sourcecode(address, settings.etherscan_api_key)
@@ -117,9 +119,8 @@ def get_permissions(address: str):
         contract_name = res['result'][0]['ContractName']
 
         permission_info = detect_permissions(address, contract_name, etherscan_api_key=settings.etherscan_api_key)
-        if not permission_info:
-            raise ValueError(f"No permissioned functions found for address {address}")
         return permission_info
+    except ValueError as ve:
+        raise
     except Exception as e:
-        print(f"Error fetching permissions info: {e}")
         raise RuntimeError(f"Failed to get permissions info: {str(e)}") from e
