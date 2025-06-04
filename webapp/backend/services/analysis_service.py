@@ -124,7 +124,7 @@ async def calculate_contract_risk(address: str, session: Session) -> Dict[str, A
     try:
         logger.info("Fetching verification data.")
         verification_data = get_verification_data(address)
-        verification_dic = {"exact_match": 1, "partial_match": 0.9, "": 0}
+        verification_dic = {"exact_match": 1, "match": 0.9, "": 0}
         verification_score = verification_dic.get(verification_data.get("match", ""), 0)
     except Exception as e:
         logger.error(f"Verification data fetch error: {e}")
@@ -133,8 +133,10 @@ async def calculate_contract_risk(address: str, session: Session) -> Dict[str, A
 
     try:
         logger.info("Fetching proxy data.")
-        proxy_type, _, _ = get_proxy_data(address)
+        data = get_proxy_data(address)
+        proxy_type = data["type"]
         proxy_dic = {"Not a proxy": 1, "Forward proxy": 0.8, "Upgradeable proxy": 0}
+        print(f"Proxy type: {proxy_type}")
         proxy_score = proxy_dic.get(proxy_type, 0)
         if proxy_type == "Upgradeable proxy":
             risk_factors["mutability"] = "Upgradeable proxy"
@@ -166,7 +168,7 @@ async def calculate_contract_risk(address: str, session: Session) -> Dict[str, A
     try:
         logger.info("Fetching contract audits.")
         audits_data = await contract_service.get_contract_audits(address)
-        max_audits = 10
+        max_audits = 6
         audits_score = len(audits_data["audits"]) / max_audits
     except Exception as e:
         logger.error(f"Contract audits fetch error: {e}")
@@ -174,6 +176,8 @@ async def calculate_contract_risk(address: str, session: Session) -> Dict[str, A
     if audits_score == 0:
         risk_factors["audits"] = "No audits found"
 
-    risk_score = 0.1 * verification_score + 0.05 * proxy_score + 0.05 * permissions_score + 0.3 * scorecard_score + 0.5 * audits_score
-    risk_score = round((1-risk_score) * 100)
+    logger.info(f"Verification score: {verification_score}, Proxy score: {proxy_score}, Permissions score: {permissions_score}, Scorecard score: {scorecard_score}, Audits score: {audits_score}")
+
+    score = 0.1 * verification_score + 0.05 * proxy_score + 0.05 * permissions_score + 0.3 * scorecard_score + 0.5 * audits_score
+    risk_score = round((1-score) * 100)
     return {"risk_score": risk_score, "risk_factors": risk_factors}
