@@ -136,6 +136,8 @@ async def calculate_contract_risk(address: str, session: Session) -> Dict[str, A
         proxy_type, _, _ = get_proxy_data(address)
         proxy_dic = {"Not a proxy": 1, "Forward proxy": 0.8, "Upgradeable proxy": 0}
         proxy_score = proxy_dic.get(proxy_type, 0)
+        if proxy_type == "Upgradeable proxy":
+            risk_factors["mutability"] = "Upgradeable proxy"
     except Exception as e:
         logger.error(f"Proxy data fetch error: {e}")
         proxy_score = 0
