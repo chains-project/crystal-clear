@@ -10,7 +10,8 @@ from core.exceptions import InputValidationError, InternalServerError
 from core.metadata import get_labels
 from core.database import get_session
 import crud.label
-
+from services.info_service import get_verification_data, get_proxy_data, get_permissions, get_scorecard_data
+from services.contract_service import ContractService
 
 def analyze_contract_dependencies(
     session: Session,
@@ -101,12 +102,13 @@ def _process_node_labels(session: Session, network: Optional[Dict[str, Any]]) ->
             new_labels[addr] = addr
     return {**stored_labels, **new_labels}
 
-def calculate_contract_risk(address: str) -> Dict[str, Any]:
+async def calculate_contract_risk(address: str, session: Session) -> Dict[str, Any]:
     """
     Calculate risk score for a contract.
 
     Args:
         address: Contract address to analyze
+        session: Database session for ContractService
 
     Returns:
         Dict containing risk score and factors
@@ -115,11 +117,61 @@ def calculate_contract_risk(address: str) -> Dict[str, Any]:
         ContractAnalysisError: If the analysis fails
         ExternalServiceError: If the external service is unavailable
     """
+    logger.info(f"Analysing risk of contract {address}.")
+    contract_service = ContractService(session)
+    risk_factors = {}
+
     try:
-        logger.info(f"Analysing risk of contract {address}.")
-
-        return {"risk_score": 42, "risk_factors": {"TBD": "TBD"}}
-
+        logger.info("Fetching verification data.")
+        verification_data = get_verification_data(address)
+        verification_dic = {"exact_match": 1, "partial_match": 0.9, "": 0}
+        verification_score = verification_dic.get(verification_data.get("match", ""), 0)
     except Exception as e:
-        logger.error(f"Risk analysis error: {e}")
-        raise InternalServerError(f"Failed to analyse risk: {str(e)}") from e
+        logger.error(f"Verification data fetch error: {e}")
+        verification_score = 0
+        risk_factors["verification"] = "Not verified"
+
+    try:
+        logger.info("Fetching proxy data.")
+        proxy_type, _, _ = get_proxy_data(address)
+        proxy_dic = {"Not a proxy": 1, "Forward proxy": 0.8, "Upgradeable proxy": 0}
+        proxy_score = proxy_dic.get(proxy_type, 0)
+    except Exception as e:
+        logger.error(f"Proxy data fetch error: {e}")
+        proxy_score = 0
+    try:
+        logger.info("Fetching permissions data.")
+        permissions_data = get_permissions(address)
+        permissions_score = 1 if len(permissions_data) == 0 else 0
+    except Exception as e:
+        logger.error(f"Permissions data fetch error: {e}")
+        permissions_score = 0
+
+    try:
+        logger.info("Fetching scorecard data.")
+        repo_data = await contract_service.get_contract_repository(address)
+        url = repo_data["repository"]["url"]
+        url_elms = url.split("/")
+        org, repo = url_elms[-2], url_elms[-1]
+        scorecard_data = get_scorecard_data(org, repo)
+        scorecard_score = scorecard_data["raw"]["score"]
+        scorecard_score = scorecard_score / 10
+    except Exception as e:
+        logger.error(f"Scorecard data fetch error: {e}")
+        scorecard_score = 0
+        risk_factors["repository"] = "Not available"
+
+    try:
+        logger.info("Fetching contract audits.")
+        audits_data = await contract_service.get_contract_audits(address)
+        max_audits = 10
+        audits_score = len(audits_data["audits"]) / max_audits
+    except Exception as e:
+        logger.error(f"Contract audits fetch error: {e}")
+        audits_score = 0
+    if audits_score == 0:
+        risk_factors["audits"] = "No audits found"
+
+    risk_score = 0.2 * verification_score + 0.1 * proxy_score + 0.1 * permissions_score + 0.2 * scorecard_score + 0.4 * audits_score
+    risk_score = round(risk_score * 100)
+    return {"risk_score": risk_score, "risk_factors": risk_factors}
