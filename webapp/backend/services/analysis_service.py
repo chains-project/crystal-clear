@@ -150,7 +150,7 @@ async def calculate_contract_risk(address: str, session: Session) -> Dict[str, A
     try:
         logger.info("Fetching scorecard data.")
         repo_data = await contract_service.get_contract_repository(address)
-        url = repo_data["repository"]["url"]
+        url = repo_data["repository"].url
         url_elms = url.split("/")
         org, repo = url_elms[-2], url_elms[-1]
         scorecard_data = get_scorecard_data(org, repo)
@@ -172,6 +172,6 @@ async def calculate_contract_risk(address: str, session: Session) -> Dict[str, A
     if audits_score == 0:
         risk_factors["audits"] = "No audits found"
 
-    risk_score = 0.2 * verification_score + 0.1 * proxy_score + 0.1 * permissions_score + 0.2 * scorecard_score + 0.4 * audits_score
+    risk_score = 0.1 * verification_score + 0.05 * proxy_score + 0.05 * permissions_score + 0.3 * scorecard_score + 0.5 * audits_score
     risk_score = round(risk_score * 100)
     return {"risk_score": risk_score, "risk_factors": risk_factors}
