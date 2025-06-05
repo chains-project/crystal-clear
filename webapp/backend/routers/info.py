@@ -1,7 +1,9 @@
 from fastapi import APIRouter, status, Depends, HTTPException
 from sqlalchemy.orm import Session
 import asyncio
+from fastapi_cache.decorator import cache
 
+from core.config import settings
 from core.database import get_session
 from schemas.info import (
     LatestBlockResponse,
@@ -72,6 +74,7 @@ async def get_latest_block():
     summary="Get deployment information",
     description="Fetch deployment information for a given contract address.",
 )
+@cache(expire=settings.cache_ttl)
 async def get_deployment_info(
     address: str,
     session: Session = Depends(get_session),
@@ -102,6 +105,7 @@ async def get_deployment_info(
     summary="Get contract information",
     description="Fetch contract information for a given address.",
 )
+@cache(expire=settings.cache_ttl)
 async def get_contract_info(
     address: str,
 ):
@@ -140,6 +144,7 @@ async def get_contract_info(
     summary="Get scorecard data",
     description="Fetch scorecard data for a given repository.",
 )
+@cache(expire=settings.cache_ttl)
 async def get_scorecard_info(
     request: ScorecardRequest,
     ):
@@ -181,6 +186,7 @@ async def get_scorecard_info(
     summary="Get proxy information",
     description="Fetch proxy information for a given address.",
 )
+@cache(expire=settings.cache_ttl)
 async def get_proxy_info(
     address: str,
 ):
@@ -219,6 +225,7 @@ async def get_proxy_info(
     summary="Get permissioned functions for a contract",
     description="Fetch functions that have permission checks for a given contract address.",
 )
+@cache(expire=settings.cache_ttl)
 async def get_permissions_info(address: str):
     """
     Get permissioned functions for a contract address.

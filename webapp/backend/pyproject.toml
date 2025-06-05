@@ -19,6 +19,8 @@ dependencies = [
     "sqlmodel (>=0.0.24,<0.0.25)",
     "psycopg2-binary (>=2.9.10,<3.0.0)",
     "slither-analyzer (>=0.11.3,<0.12.0)",
+    "redis (>=6.2.0,<7.0.0)",
+    "fastapi-cache2 (>=0.2.2,<0.3.0)",
 ]
 
 [tool.poetry.group.dev.dependencies]

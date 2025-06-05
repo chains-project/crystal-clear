@@ -7,6 +7,10 @@ class Settings(BaseSettings):
     # Database Configuration
     database_url: str
 
+    # Cache Configuration
+    cache_url: str
+    cache_ttl: int = 60 * 60 * 24 * 7  # 7 days for demo purposes
+
     # API Configuration
     api_host: str
     api_port: int
@@ -36,6 +40,7 @@ class Settings(BaseSettings):
         fields = {
             "eth_node_url": "ETH_NODE_URL",
             "database_url": "DATABASE_URL",
+            "cache_url": "CACHE_URL",
             "api_host": "API_HOST",
             "api_port": "API_PORT",
             "log_level": "LOG_LEVEL",
