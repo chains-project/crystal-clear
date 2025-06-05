@@ -103,4 +103,5 @@ async def get_contract_risk(address: str, session: Session = Depends(get_session
         address=request.address,
         risk_score=risk_data["risk_score"],
         risk_factors=risk_data["risk_factors"],
+        attestation=risk_data["attestation"],
     )
