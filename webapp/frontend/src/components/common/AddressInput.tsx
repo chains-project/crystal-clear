@@ -1,5 +1,6 @@
 import React from "react";
 import { Input } from "@/components/ui/input";
+import { isAddress } from "ethers";
 
 interface AddressInputProps {
     value: string;
@@ -7,6 +8,7 @@ interface AddressInputProps {
     placeholder?: string;
     className?: string;
     style?: React.CSSProperties;
+    showValidation?: boolean;
 }
 
 export function AddressInput({
@@ -15,7 +17,16 @@ export function AddressInput({
     placeholder = "Enter contract address",
     className = "",
     style = {},
+    showValidation = true,
 }: AddressInputProps) {
+
+    console.log("value", value);
+    console.log("onChange", onChange);
+
+    const isValid = value === "" || isAddress(value);
+
+    console.log("isValid", isValid);
+
     return (
         <div
             style={{
@@ -30,21 +41,25 @@ export function AddressInput({
             <Input
                 type="text"
                 value={value}
-                onChange={(e) => onChange(e.target.value)}
+                onChange={(e) => {
+                    const val = e.target.value;
+                    onChange(val);
+                }}
                 placeholder={placeholder}
                 style={{
                     display: "flex",
                     color: "#2b2b2b",
                     height: "32px",
-                    border: "1px solid #2b2b2b",
+                    border: `1px solid ${!isValid && showValidation ? "#EF164F" : "#2b2b2b"
+                        }`,
                     borderRightColor: "grey",
                     borderBottomColor: "grey",
-                    borderRadius: "0px",
+                    borderRadius: "1px",
                     fontSize: "13px",
                     width: "100%",
                     paddingRight: "30px",
                     textAlign: "left",
-                    boxShadow: "inset -1px -1px #fff, inset 1px 1px grey, inset 2px 2px #fff, inset 2px 2px #fff"
+                    // boxShadow: "inset -1px -1px #fff, inset 1px 1px grey, inset 2px 2px #fff, inset 2px 2px #fff"
                 }}
             />
 
@@ -84,6 +99,7 @@ export function AddressInput({
                     </svg>
                 </div>
             )}
+
         </div>
     );
 }

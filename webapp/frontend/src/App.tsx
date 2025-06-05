@@ -1,4 +1,5 @@
 import "./App.css";
+import "./index.css";
 import Graph from "./pages/graph/Graph";
 import { styleReset } from 'react95';
 import { createGlobalStyle } from 'styled-components';

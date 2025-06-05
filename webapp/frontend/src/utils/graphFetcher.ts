@@ -1,4 +1,6 @@
 import type { GraphData } from "../components/graph/GraphLayout";
+import API_BASE_URL from "./api";
+
 
 export const fetchGraphData = async (
     address: string,
@@ -15,7 +17,7 @@ export const fetchGraphData = async (
         console.log("toBlock in fetcher", toBlock);
 
         // Build the URL with optional query parameters
-        let url = `http://localhost:8000/v1/analysis/${address}/dependencies`;
+        let url = `${API_BASE_URL}/v1/analysis/${address}/dependencies`;
 
         const params = new URLSearchParams();
 
@@ -32,6 +34,7 @@ export const fetchGraphData = async (
         console.log("Fetching data from:", url);
         const response = await fetch(url);
         const data = await response.json();
+
         return data;
     } catch (err) {
         console.error("Failed to fetch data:", err);

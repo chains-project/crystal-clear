@@ -1,7 +1,7 @@
 import { useEffect, useRef, useCallback, useState } from "react";
 import * as d3 from "d3";
 import GraphControlPanel from "./GraphLayoutPanel";
-
+import NodeHoverCard from "./NodeHoverCard";
 // Define TypeScript interfaces for data structures
 export interface Node {
     id: string; // address
@@ -53,17 +53,11 @@ export default function GraphLayout({
     }, [jsonData]);
 
     useEffect(() => {
-        console.log("[GraphLayout] highlightAddress changed", highlightAddress);
-    }, [highlightAddress]);
-
-    useEffect(() => {
-        console.log("[GraphLayout] inputAddress changed", inputAddress);
-    }, [inputAddress]);
-
-    useEffect(() => {
         console.log("[GraphLayout] onNodeClick changed", onNodeClick);
     }, [onNodeClick]);
 
+
+    const draggingRef = useRef(false);
 
     const svgRef = useRef<SVGSVGElement | null>(null);
     const graphDrawnRef = useRef<boolean>(false);
@@ -72,6 +66,15 @@ export default function GraphLayout({
     const gSelection = useRef<d3.Selection<SVGGElement, unknown, null, undefined> | null>(null);
     const zoomBehavior = useRef<d3.ZoomBehavior<SVGSVGElement, unknown> | null>(null);
     const [dimensions, setDimensions] = useState<{ width: number, height: number } | null>(null);
+
+    const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
+    const [hoveredNodeInfo, setHoveredNodeInfo] = useState<{
+        balance?: string | null;
+        company?: string | null;
+        error?: boolean;
+    } | null>(null);
+
+
 
     const drawGraph = useCallback((data: GraphData) => {
         console.log("[drawGraph] invoked", new Date().toISOString());
@@ -94,6 +97,7 @@ export default function GraphLayout({
 
         // Store the svg selection for use in the control panel
         svgSelection.current = svg;
+
 
         // Add a purple background to the SVG
         svg.append("rect")
@@ -201,8 +205,9 @@ export default function GraphLayout({
             .join("circle")
             .attr("class", "flow-dot")
             .attr("r", 2)
-            .attr("fill", "#fff")
-            .style("opacity", 0.7);
+            .attr("fill", "#EFB6C8")
+            .style("opacity", 0.7)
+            .attr("filter", "url(#dotGlow)");
 
         // Animation function for the flow dots
         function animateFlowDots() {
@@ -310,7 +315,40 @@ export default function GraphLayout({
 
                 onNodeClick(d);
             })
-            .call(drag(simulation) as any);
+            .call(drag(simulation) as any)
+            .on("mouseover", (_event, d) => {
+
+                if (draggingRef.current) return;
+                setHoveredNodeId(d.id);
+                setHoveredNodeInfo({});
+
+
+
+
+                fetch(`/api/balance?id=${d.id}`)
+                    .then((res) => res.json())
+                    .then((data) => {
+                        setHoveredNodeInfo((prev) => ({ ...prev, balance: data.balance }));
+                    })
+                    .catch(() => {
+                        setHoveredNodeInfo((prev) => ({ ...prev, balance: null, error: true }));
+                    });
+
+                fetch(`/api/company?id=${d.id}`)
+                    .then((res) => res.json())
+                    .then((data) => {
+                        setHoveredNodeInfo((prev) => ({ ...prev, company: data.company }));
+                    })
+                    .catch(() => {
+                        setHoveredNodeInfo((prev) => ({ ...prev, company: null, error: true }));
+                    });
+
+            })
+            .on("mouseout", () => {
+                setHoveredNodeId(null);
+                setHoveredNodeInfo(null);
+            })
+
 
         const label = g
             .append("g")
@@ -375,6 +413,7 @@ export default function GraphLayout({
                 .on(
                     "start",
                     (event: d3.D3DragEvent<SVGCircleElement, Node, Node>, d: Node) => {
+                        draggingRef.current = true;
                         if (!event.active) simulation.alphaTarget(0.3).restart();
                         d.fx = d.x;
                         d.fy = d.y;
@@ -390,6 +429,7 @@ export default function GraphLayout({
                 .on(
                     "end",
                     (event: d3.D3DragEvent<SVGCircleElement, Node, Node>, d: Node) => {
+                        draggingRef.current = false;
                         if (!event.active) simulation.alphaTarget(0);
                         d.fx = null;
                         d.fy = null;
@@ -476,6 +516,31 @@ export default function GraphLayout({
     return (
         <div style={{ position: "relative", width: "100%", height: "100%" }}>
             <svg ref={svgRef} style={{ width: "100%", height: "100%" }}></svg>
+
+            {/* 🟡 Empty result message */}
+            {jsonData && jsonData.edges && jsonData.edges.length === 0 && (
+                <div style={{
+                    position: "absolute",
+                    top: "50%",
+                    left: "50%",
+                    transform: "translate(-50%, -50%)",
+                    background: "rgba(255,255,255,0.95)",
+                    padding: "16px 24px",
+                    borderRadius: "8px",
+                    border: "1px solid pink",
+                    boxShadow: "0 2px 6px rgba(0,0,0,0.1)",
+                    fontSize: "16px",
+                    color: "#333",
+                    textAlign: "center"
+                }}>
+                    No dependencies found for this contract in the selected block range.
+                </div>
+            )}
+
+            {hoveredNodeId && hoveredNodeInfo && (
+                <NodeHoverCard nodeId={hoveredNodeId} nodeInfo={hoveredNodeInfo} />
+            )}
+
 
             {/* Only render GraphControlPanel when not on homepage and all dependencies are available */}
             {!isHomepage && svgSelection.current && gSelection.current && zoomBehavior.current && dimensions && (

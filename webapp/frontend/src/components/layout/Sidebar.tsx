@@ -2,17 +2,18 @@ import Interactions from "../../components/graph/Interactions";
 import LoadingSpinner from "../../components/common/LoadingSpinner";
 import RiskDetails from "../../components/layout/RiskDetails";
 import type { JsonData, Node } from "../../types";
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useLocalAlert } from "../ui/local-alert";
 import { useSearchParams } from "react-router";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-
-
+import type { DeploymentInfo } from "@/utils/queries";
+import { getRiskAnalysis } from "@/utils/queries";
 interface SidebarProps {
   activeTab: string;
   setActiveTab: (tab: string) => void;
   loading: boolean;
   jsonData: JsonData | null;
+  deploymentInfo: DeploymentInfo | null;
   inputAddress: string;
   fromBlock: number | null;
   toBlock: number | null;
@@ -27,6 +28,7 @@ export default function Sidebar({
   setActiveTab,
   loading,
   jsonData,
+  deploymentInfo,
   inputAddress,
   fromBlock,
   toBlock,
@@ -37,11 +39,12 @@ export default function Sidebar({
 }: SidebarProps) {
   const { showLocalAlert } = useLocalAlert();
   const [showRiskExplanation, setShowRiskExplanation] = useState(false);
-  const [copyFeedback, setCopyFeedback] = useState(false);
+  const [addressCopied, setAddressCopied] = useState(false);
+  const [deployerCopied, setDeployerCopied] = useState(false);
   const addressContainerRef = useRef<HTMLSpanElement>(null);
   const [searchParams] = useSearchParams();
   const addressFromParams = searchParams.get("address") || "";
-
+  const [riskScore, setRiskScore] = useState<number | null>(null);
   // Reusable placeholder component
   const PlaceholderMessage = ({ message }: { message: string }) => (
     <div style={{
@@ -67,6 +70,37 @@ export default function Sidebar({
       </span>
     </div>
   );
+
+  useEffect(() => {
+    if (jsonData?.address) {
+      getRiskAnalysis(jsonData.address, true).then(score => {
+        setRiskScore(score);
+      });
+    }
+  }, [jsonData?.address]);
+
+  const getRiskLevel = (score: number | null) => {
+    if (score === null) return "Risk Level";
+    if (score >= 80) return "High Risk";
+    if (score >= 50) return "Medium Risk";
+    return "Low Risk";
+  };
+
+  const getRiskColor = (score: number | null) => {
+    if (score === null) return "#777";
+    if (score >= 80) return "#e74c3c";
+    if (score >= 50) return "#f39c12";
+    return "#27ae60";
+  };
+
+  const getRiskBg = (score: number | null) => {
+    if (score === null) return "rgba(119, 119, 119, 0.1)";
+    if (score >= 80) return "rgba(231, 76, 60, 0.1)";
+    if (score >= 50) return "rgba(243, 156, 18, 0.1)";
+    return "rgba(39, 174, 96, 0.1)";
+  };
+
+
 
   return (
     <div
@@ -146,7 +180,7 @@ export default function Sidebar({
                     )}
                   </span>
                 </TooltipTrigger>
-                <TooltipContent
+                <TooltipContent side="top" sideOffset={-10}
                   style={{
                     backgroundColor: "#333",
                     color: "white",
@@ -175,8 +209,8 @@ export default function Sidebar({
               <button
                 onClick={() => {
                   navigator.clipboard.writeText(jsonData?.address || addressFromParams);
-                  setCopyFeedback(true);
-                  setTimeout(() => setCopyFeedback(false), 2000);
+                  setAddressCopied(true);
+                  setTimeout(() => setAddressCopied(false), 2000);
                 }}
                 style={{
                   border: "none",
@@ -195,7 +229,7 @@ export default function Sidebar({
                     <path fill-rule="evenodd" clip-rule="evenodd" d="M21 6H7V22H15V20H17V18H15V16H17V18H19V16H21V6ZM9 20V8H19V14H13V20H9ZM3 18H5V4H17V2H5H3V4V18Z" fill="#2b2b2b" />
                   </svg>
                 </span>
-                {copyFeedback && (
+                {addressCopied && (
                   <div style={{
                     position: "absolute",
                     bottom: "100%",
@@ -218,6 +252,137 @@ export default function Sidebar({
               {/* Etherscan link */}
               <a
                 href={`https://etherscan.io/address/${jsonData?.address || addressFromParams}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  border: "none",
+                  background: "#fff",
+                  borderRadius: "0px",
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  color: "#555",
+                  textDecoration: "none",
+                }}
+              >
+                <svg fill="none" height="16" width="16" viewBox="-2.19622685 .37688013 124.38617733 125.52740941" xmlns="http://www.w3.org/2000/svg"><path d="m25.79 58.415a5.157 5.157 0 0 1 5.181-5.156l8.59.028a5.164 5.164 0 0 1 5.164 5.164v32.48c.967-.287 2.209-.593 3.568-.913a4.3 4.3 0 0 0 3.317-4.187v-40.291a5.165 5.165 0 0 1 5.164-5.165h8.607a5.165 5.165 0 0 1 5.164 5.165v37.393s2.155-.872 4.254-1.758a4.311 4.311 0 0 0 2.632-3.967v-44.578a5.164 5.164 0 0 1 5.163-5.164h8.606a5.164 5.164 0 0 1 5.164 5.164v36.71c7.462-5.408 15.024-11.912 21.025-19.733a8.662 8.662 0 0 0 1.319-8.092 60.792 60.792 0 0 0 -58.141-40.829 60.788 60.788 0 0 0 -51.99 91.064 7.688 7.688 0 0 0 7.334 3.8c1.628-.143 3.655-.346 6.065-.63a4.3 4.3 0 0 0 3.815-4.268z" fill="#21325b" /><path d="m25.602 110.51a60.813 60.813 0 0 0 63.371 5.013 60.815 60.815 0 0 0 33.212-54.203c0-1.4-.065-2.785-.158-4.162-22.219 33.138-63.244 48.63-96.423 53.347" fill="#979695" /></svg>
+              </a>
+            </div>
+          )}
+        </div>
+
+        {/* Display deployer info */}
+        <div
+          style={{
+            marginBottom: "5px",
+            display: "flex",
+            alignItems: "center",
+            minHeight: "24px",
+          }}
+        >
+          <span style={{
+            fontWeight: "500",
+            color: "#555",
+            marginRight: "4px",
+            fontSize: "14px",
+          }}>Deployer: </span>
+
+
+          {!selectedNode && !addressFromParams ? (
+            <PlaceholderMessage message="Waiting for an address..." />
+          ) : (
+            deploymentInfo && deploymentInfo.deployer ? (
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span
+                      style={{
+                        fontSize: "14px",
+                        marginRight: "8px",
+                        padding: "2px 4px",
+                        borderRadius: "4px",
+                        cursor: "pointer",
+                      }}
+                    >
+                      {`${deploymentInfo.deployer.substring(0, 10)}...${deploymentInfo.deployer.substring(deploymentInfo.deployer.length - 8)}`}
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent side="top" sideOffset={-10}
+                    style={{
+                      backgroundColor: "#333",
+                      color: "white",
+                      padding: "6px 10px",
+                      borderRadius: "2px",
+                      fontSize: "12px",
+                      fontFamily: "monospace",
+                      boxShadow: "0 2px 10px rgba(0,0,0,0.2)",
+                      maxWidth: "100%",
+                      wordBreak: "break-all"
+                    }}
+                  >
+                    <p>{deploymentInfo.deployer}</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            ) : (
+              <span style={{ fontStyle: "italic", color: "#666", marginLeft: "4px", fontSize: "12px" }}>Waiting for deployer info...</span>
+            )
+          )}
+
+          {deploymentInfo && deploymentInfo.deployer && (
+            <div
+              style={{
+                display: "flex",
+                gap: "8px",
+                marginLeft: "auto"
+              }}
+            >
+              <button
+                onClick={() => {
+                  navigator.clipboard.writeText(deploymentInfo.deployer);
+                  setDeployerCopied(true);
+                  setTimeout(() => setDeployerCopied(false), 2000);
+                }}
+                style={{
+                  border: "none",
+                  background: "#fff",
+                  borderRadius: "0px",
+                  cursor: "pointer",
+                  fontSize: "11px",
+                  display: "flex",
+                  alignItems: "center",
+                  color: "#555",
+                  position: "relative",
+                  // border: "1px solid #ddd",
+                }}
+              >
+                <span style={{ margin: "4px" }}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path fill-rule="evenodd" clip-rule="evenodd" d="M21 6H7V22H15V20H17V18H15V16H17V18H19V16H21V6ZM9 20V8H19V14H13V20H9ZM3 18H5V4H17V2H5H3V4V18Z" fill="#2b2b2b" />
+                  </svg>
+                </span>
+                {deployerCopied && (
+                  <div style={{
+                    position: "absolute",
+                    bottom: "100%",
+                    left: "50%",
+                    transform: "translateX(-50%)",
+                    marginBottom: "8px",
+                    backgroundColor: "#7469B6",
+                    color: "white",
+                    padding: "4px 8px",
+                    borderRadius: "4px",
+                    fontSize: "11px",
+                    whiteSpace: "nowrap",
+                    zIndex: 10,
+                  }}>
+                    Copied!
+                  </div>
+                )}
+              </button>
+
+              <a
+                href={`https://etherscan.io/address/${deploymentInfo.deployer}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 style={{
@@ -306,17 +471,17 @@ export default function Sidebar({
               }}
             >
               {(() => {
-                const riskLevel = jsonData ? "High Risk" : "Risk Level";
-                const riskScore = jsonData ? "59/100" : "Risk Score";
-                const riskColor = jsonData ? "#e74c3c" : "#2b2b2b";
-                const riskBg = jsonData ? "rgba(231, 76, 60, 0.1)" : "rgba(119, 119, 119, 0.1)";
-                const riskTextColor = jsonData ? "#e74c3c" : "#777";
-                const reportDisabled = !jsonData;
+                const riskLevel = getRiskLevel(riskScore);
+                const riskColor = getRiskColor(riskScore);
+                const riskBg = getRiskBg(riskScore);
+                const riskTextColor = riskColor;
+                const reportDisabled = riskScore === null;
 
                 return (
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%" }}>
                     <span style={{ fontWeight: "bold", color: riskColor, fontSize: "16px", display: "flex", alignItems: "center" }}>
-                      {riskScore}
+                      {riskScore !== null ? `${riskScore}/100` : "Risk Score"}
+
                       <div
                         style={{
                           width: "18px",
@@ -352,7 +517,7 @@ export default function Sidebar({
                               fontSize: "12px",
                               color: "#555",
                               boxShadow: "0 3px 8px rgba(0,0,0,0.15)",
-                              zIndex: 10,
+                              zIndex: 100,
                               textAlign: "left",
                               fontWeight: "normal",
                               border: "1px solid #eee",
@@ -644,6 +809,6 @@ export default function Sidebar({
           </>
         )}
       </div>
-    </div>
+    </div >
   );
 }

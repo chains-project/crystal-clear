@@ -1,5 +1,5 @@
-import React, { useState, useCallback, useEffect } from "react";
-import { useSearchParams } from "react-router";
+import React, { useState, useCallback, useEffect, useRef } from "react";
+// import { useSearchParams } from "react-router";
 import Header from "../../components/layout/Header";
 import Sidebar from "../../components/layout/Sidebar";
 import GraphLayout from "../../components/graph/GraphLayout";
@@ -7,9 +7,12 @@ import type { GraphData, Node } from "../../components/graph/GraphLayout";
 import { useLocalAlert } from "@/components/ui/local-alert";
 import { fetchGraphData } from "@/utils/graphFetcher";
 import '../../App.css';
+import { getApiAvailability, getDeploymentInfo } from "@/utils/queries";
+import type { DeploymentInfo as DeploymentInfoJSON } from "@/utils/queries";
 
 export default function ContractGraph() {
     const [jsonData, setJsonData] = useState<GraphData | null>(null);
+    const [deploymentInfo, setDeploymentInfo] = useState<DeploymentInfoJSON | null>(null);
     const [activeTab, setActiveTab] = useState<string>("Risk Score");
     const [inputAddress, setInputAddress] = useState<string>("");
     const [loading, setLoading] = useState<boolean>(false);
@@ -18,11 +21,15 @@ export default function ContractGraph() {
     const [selectedNode, setSelectedNode] = useState<Node | null>(null);
     const [highlightAddress, setHighlightAddress] = useState<string | null>(null);
     const { showLocalAlert } = useLocalAlert();
-    const [searchParams] = useSearchParams();
+    // const [searchParams] = useSearchParams();
+    const [apiAvailability, setApiAvailability] = useState<boolean | undefined>(undefined);
 
     const fetchData = useCallback(
         async (address: string, fromBlock: string, toBlock: string) => {
             if (!address) return;
+
+            const isAvailable = await getApiAvailability();
+            setApiAvailability(isAvailable);
 
             setLoading(true);
 
@@ -46,6 +53,8 @@ export default function ContractGraph() {
             } catch (error) {
                 console.error("Error fetching graph data:", error);
                 showLocalAlert("Failed to fetch graph data. Please try again later.", 5000);
+                // Reset or clear state if needed
+                setJsonData(null);
             } finally {
                 setLoading(false);
             }
@@ -60,6 +69,11 @@ export default function ContractGraph() {
         const fromBlockParam = searchParams.get('from_block');
         const toBlockParam = searchParams.get('to_block');
 
+        console.log("addressParam in graph", addressParam);
+        console.log("fromBlockParam in graph", fromBlockParam);
+        console.log("toBlockParam in graph", toBlockParam);
+        console.log("apiAvailability in graph", apiAvailability);
+
         if (addressParam) {
             setInputAddress(addressParam);
             // Only fetch data once when component mounts
@@ -69,9 +83,29 @@ export default function ContractGraph() {
                 toBlockParam || ""
             );
         }
-    }, []);  // Remove searchParams and fetchData from dependencies to prevent re-fetching
+    }, []);
 
-    // Handle form submission
+    const alertRef = useRef(showLocalAlert);
+    alertRef.current = showLocalAlert;
+
+    useEffect(() => {
+        if (!inputAddress || apiAvailability === undefined) return;
+
+        const fetch = async () => {
+            try {
+                const info = await getDeploymentInfo(inputAddress, apiAvailability, alertRef.current);
+                setDeploymentInfo(prev => {
+                    if (JSON.stringify(prev) === JSON.stringify(info)) return prev;
+                    return info;
+                });
+            } catch (e) {
+                alertRef.current("Failed to fetch deployment info", 5000);
+            }
+        };
+        fetch();
+    }, [inputAddress, apiAvailability]);
+
+
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         if (inputAddress) {
@@ -85,14 +119,17 @@ export default function ContractGraph() {
         setActiveTab("Dependency");
     }, []);
 
-    useEffect(() => {
-        // Check if the page is being reloaded
-        const navigationEntries = performance.getEntriesByType("navigation") as PerformanceNavigationTiming[];
-        if (navigationEntries[0]?.type === "reload") {
-            // Redirect to the graph page
-            window.location.href = `${window.location.origin}/graph`; // Adjust the path as needed
-        }
-    }, []);
+    // useEffect(() => {
+    //     // Check if the page is being reloaded
+    //     const navigationEntries = performance.getEntriesByType("navigation") as PerformanceNavigationTiming[];
+    //     if (navigationEntries[0]?.type === "reload") {
+    //         // Redirect to the graph page
+    //         window.location.href = `${window.location.origin}/graph`; // Adjust the path as needed
+    //     }
+    // }, []);
+
+    // deploymentInfo
+
 
     return (
         <div
@@ -139,6 +176,7 @@ export default function ContractGraph() {
                         setActiveTab={setActiveTab}
                         loading={loading}
                         jsonData={jsonData}
+                        deploymentInfo={deploymentInfo}
                         inputAddress={inputAddress}
                         setHighlightAddress={setHighlightAddress}
                         highlightAddress={highlightAddress}
