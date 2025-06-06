@@ -9,6 +9,11 @@ from core.logging import setup_logging
 from core.database import create_db_and_tables
 from routers import analysis, health, info, audit, contract, repository
 
+from fastapi_cache import FastAPICache
+from fastapi_cache.backends.redis import RedisBackend
+
+from redis import asyncio as aioredis
+
 # Setup logging
 setup_logging()
 
@@ -17,6 +22,8 @@ setup_logging()
 async def lifespan(app: FastAPI):
     # Startup: create tables
     create_db_and_tables()
+    redis = aioredis.from_url(settings.cache_url)
+    FastAPICache.init(RedisBackend(redis), prefix="fastapi-cache")
     yield
     # Shutdown: add cleanup here if needed
 
@@ -53,6 +60,7 @@ app.include_router(info.router)
 app.include_router(audit.router)
 app.include_router(contract.router)
 app.include_router(repository.router)
+
 
 @app.get("/")
 async def root():

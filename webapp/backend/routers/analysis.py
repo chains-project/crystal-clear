@@ -1,7 +1,9 @@
 from fastapi import APIRouter, Query, status, Depends
 from sqlalchemy.orm import Session
 from loguru import logger
+from fastapi_cache.decorator import cache
 
+from core.config import settings
 from core.database import get_session
 from schemas.analysis import (
     ContractDependenciesRequest,
@@ -38,6 +40,7 @@ router = APIRouter(
     summary="Get contract dependencies",
     description="Analyze and return the dependency network for a given contract address.",
 )
+@cache(expire=settings.cache_ttl)
 async def get_contract_dependencies(
     address: str,
     from_block: str = Query(None, description="Start block"),
@@ -89,6 +92,7 @@ async def get_contract_dependencies(
     summary="Get contract risk assessment",
     description="Calculate and return the risk assessment for a given contract address.",
 )
+@cache(expire=settings.cache_ttl)
 async def get_contract_risk(address: str, session: Session = Depends(get_session)):
     """
     Get the risk assessment for a contract.

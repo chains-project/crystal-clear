@@ -42,6 +42,7 @@ def analyze_contract_dependencies(
         sc = SupplyChain(settings.eth_node_url, address)
         network = sc.get_network(from_block, to_block)
         network["nodes"] = _process_node_labels(session, network)
+        network["edges"] = assess_edge_risk(network.get("edges", []))
         logger.info(f"Analysis completed for {address}")
         return network
 
@@ -101,6 +102,14 @@ def _process_node_labels(session: Session, network: Optional[Dict[str, Any]]) ->
         else:
             new_labels[addr] = addr
     return {**stored_labels, **new_labels}
+
+def assess_edge_risk(edges: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    for edge in edges:
+        if "DELEGATECALL" in edge["types"]:
+            edge["risk"] = "High"
+        else:
+            edge["risk"] = "Low"
+    return edges
 
 async def calculate_contract_risk(address: str, session: Session) -> Dict[str, Any]:
     """

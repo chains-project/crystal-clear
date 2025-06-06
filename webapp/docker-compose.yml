@@ -11,6 +11,7 @@ services:
     restart: unless-stopped  # Automatically restart the container unless stopped manually
     depends_on:
       - db  # Ensure the database is started before the backend service
+      - cache  # Ensure cache is started before the backend service
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock 
   
@@ -27,3 +28,12 @@ services:
     restart: unless-stopped  # Automatically restart the container unless stopped manually
     volumes:
       - /mnt/ssd2/mjin/postgres_data:/var/lib/postgresql/data  # Persist PostgreSQL data on your host's filesystem
+
+  cache:
+    image: redis:7
+    container_name: cc-cache
+    ports:
+      - "6379:6379"
+    volumes:
+      - /mnt/ssd2/mjin/redis_data:/data
+    command: ["redis-server", "--appendonly", "yes"]
