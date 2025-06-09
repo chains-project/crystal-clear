@@ -18,6 +18,7 @@ interface RiskMetric {
     name: string;
     value: string;
     level: "high" | "medium" | "low";
+    note?: string;
     detail?: string;
 }
 
@@ -164,8 +165,9 @@ export default function RiskDetails({ jsonData }: RiskDetailsProps) {
                 const isProxy = proxy?.type?.toLowerCase() === "not a proxy";
                 updated.push({
                     name: "Immutability",
-                    value: isProxy ? "immutable" : "proxy",
+                    value: isProxy ? "Immutable" : "Proxy",
                     level: isProxy ? "low" : "high",
+                    note: isProxy ? "Unsafe" : "Safe",
                     detail: `Proxy Type: ${proxy?.type || "N/A"}\nProxy message: ${proxy?.message || "No additional message."}`,
                 });
             } catch {
@@ -173,6 +175,7 @@ export default function RiskDetails({ jsonData }: RiskDetailsProps) {
                     name: "Immutability",
                     value: "Cannot get",
                     level: "medium",
+                    note: "Is it safe?",
                     detail: "Failed to fetch proxy info.",
                 });
             }
@@ -185,6 +188,7 @@ export default function RiskDetails({ jsonData }: RiskDetailsProps) {
                     name: "Admin Privileges",
                     value: adminFuncs.length > 0 ? "Found" : "None",
                     level: adminFuncs.length > 0 ? "high" : "low",
+                    note: adminFuncs.length > 0 ? "Unsafe" : "Safe",
                     detail: adminFuncs.length > 0 ? `Admin functions: ${adminFuncs.join(", ")}` : "No admin function detected.",
                 });
             } catch {
@@ -192,6 +196,7 @@ export default function RiskDetails({ jsonData }: RiskDetailsProps) {
                     name: "Admin Privileges",
                     value: "Cannot get",
                     level: "medium",
+                    note: "Is it safe?",
                     detail: "Failed to fetch permission info.",
                 });
             }
@@ -202,8 +207,9 @@ export default function RiskDetails({ jsonData }: RiskDetailsProps) {
                 const verified = verification?.verification?.toLowerCase().includes("verified");
                 updated.push({
                     name: "Verification",
-                    value: verified ? "verified" : "not verified",
+                    value: verified ? "Verified" : "Not verified",
                     level: verified ? "low" : "high",
+                    note: verified ? "Safe" : "Unsafe",
                     detail:
                         (verification?.verification ? `Verification status: ${verification.verification}\n` : "") +
                         (verification?.verifiedAt ? `Verified at: ${verification.verifiedAt}` : "No verification time found."),
@@ -213,6 +219,7 @@ export default function RiskDetails({ jsonData }: RiskDetailsProps) {
                     name: "Verification",
                     value: "Not Verified",
                     level: "medium",
+                    note: "Is it safe?",
                     detail: "This contract is not verified on Sourcify.",
                 });
             }
@@ -233,6 +240,7 @@ export default function RiskDetails({ jsonData }: RiskDetailsProps) {
                         name: "Audit",
                         value: "Found",
                         level: "low",
+                        note: "Safe",
                         detail: `Protocol: ${protocol}\nVersion: ${version}\n\n${auditDetails}`,
                     });
                 } else {
@@ -240,6 +248,7 @@ export default function RiskDetails({ jsonData }: RiskDetailsProps) {
                         name: "Audit",
                         value: "None",
                         level: "high",
+                        note: "Unsafe",
                         detail: `Protocol: ${protocol}\nVersion: ${version}\n\nNo audit found.`,
                     });
                 }
@@ -248,6 +257,7 @@ export default function RiskDetails({ jsonData }: RiskDetailsProps) {
                     name: "Audit",
                     value: "Not found",
                     level: "medium",
+                    note: "Is it safe?",
                     detail: "We couldn't find any audit info.",
                 });
             }
@@ -294,7 +304,7 @@ export default function RiskDetails({ jsonData }: RiskDetailsProps) {
 
                                 }}>
                                     <span className="text-l font-medium text-gray-800" style={{ fontSize: "16px" }}>{metric.name}</span>
-                                    <span style={{
+                                    {/* <span style={{
                                         fontSize: "12px",
                                         textAlign: "right",
                                         marginLeft: "6px",
@@ -309,7 +319,24 @@ export default function RiskDetails({ jsonData }: RiskDetailsProps) {
                 `}
                                     >
                                         {metric.value}
+                                    </span> */}
+                                    <span style={{
+                                        fontSize: "12px",
+                                        textAlign: "right",
+                                        marginLeft: "6px",
+                                        padding: "4px",
+                                    }}
+                                        className={`text-xs font-semibold px-2 py-0.5 rounded
+                  ${metric.level === "high"
+                                                ? "bg-red-100 text-red-600"
+                                                : metric.level === "medium"
+                                                    ? "bg-orange-100 text-orange-600"
+                                                    : "bg-green-100 text-green-600"}
+                `}
+                                    >
+                                        {metric.note}
                                     </span>
+
                                 </div>
                             }
                             content={
