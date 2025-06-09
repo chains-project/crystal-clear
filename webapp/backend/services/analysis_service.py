@@ -205,6 +205,8 @@ async def calculate_contract_risk(address: str, session: Session) -> Dict[str, A
         "onchain_attestation_url": f"https://onchain.mab.xyz/attestation/{random_signature}"
     }
     
+
+    logger.info(f"Risk score: {risk_score}, Risk factors: {risk_factors}, Attestation: {attestation}")
     return {
         "risk_score": risk_score, 
         "risk_factors": risk_factors,

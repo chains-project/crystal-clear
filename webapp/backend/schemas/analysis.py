@@ -38,4 +38,8 @@ class ContractRiskResponse(BaseModel):
     risk_factors: Dict[str, Any] = Field(
         ..., description="Detailed risk factors"
     )
+    attestation: Dict[str, Any] = Field(
+        ...,
+        description="Attestation data",
+    )   
 
