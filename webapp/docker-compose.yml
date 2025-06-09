@@ -1,5 +1,3 @@
-version: '3.9'
-
 services:
   backend:
     build:
@@ -46,8 +44,19 @@ services:
       - cc-network
 
 volumes:
-  postgres_data: ./postgres_data
-  redis_data: ./redis_data
+  postgres_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${PWD}/postgres_data
+
+  redis_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${PWD}/redis_data
 
 networks:
   cc-network:
