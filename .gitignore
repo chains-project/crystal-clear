@@ -1,3 +1,10 @@
+# webapp db and cache files
+postgres_data/
+redis_data/
+
+# webapp analysis files
+crytic-export/
+
 .vite
 # Byte-compiled / optimized / DLL files
 __pycache__/
