@@ -1,39 +1,54 @@
+version: '3.9'
 
 services:
   backend:
     build:
-      context: ./backend  # Build the backend container from the ./backend directory
-    container_name: cc-api-backend  # Name for the backend container
-    image: cc-api-backend  # Backend image name
-    network_mode: "host"  # Uses the host's network settings (ensure this is appropriate for your environment)
-    env_file:
-      - ./backend/.env  # Load environment variables from the backend/.env file
-    restart: unless-stopped  # Automatically restart the container unless stopped manually
-    depends_on:
-      - db  # Ensure the database is started before the backend service
-      - cache  # Ensure cache is started before the backend service
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock 
-  
-  # PostgreSQL Database Service
-  db:
-    image: postgres:latest  # Use the latest official PostgreSQL image
-    container_name: cc-db  # Name for the PostgreSQL container
-    environment:
-      POSTGRES_USER: cc-user  # Define PostgreSQL user
-      POSTGRES_PASSWORD: cc-password  # Define the PostgreSQL user's password
-      POSTGRES_DB: cc  # Define the default database
+      context: ./backend
+    container_name: cc-api-backend
+    image: cc-api-backend
     ports:
-      - "5432:5432"  # Expose PostgreSQL port 5432
-    restart: unless-stopped  # Automatically restart the container unless stopped manually
+      - "8000:8000"
+    env_file:
+      - ./backend/.env
+    restart: unless-stopped
+    depends_on:
+      - db
+      - cache
     volumes:
-      - /mnt/ssd2/mjin/postgres_data:/var/lib/postgresql/data  # Persist PostgreSQL data on your host's filesystem
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - cc-network
+
+  db:
+    image: postgres:latest
+    container_name: cc-db
+    environment:
+      POSTGRES_USER: cc-user
+      POSTGRES_PASSWORD: cc-password
+      POSTGRES_DB: cc
+    ports:
+      - "5432:5432"
+    restart: unless-stopped
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - cc-network
 
   cache:
     image: redis:7
     container_name: cc-cache
     ports:
       - "6379:6379"
-    volumes:
-      - /mnt/ssd2/mjin/redis_data:/data
     command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis_data:/data
+    networks:
+      - cc-network
+
+volumes:
+  postgres_data: ./postgres_data
+  redis_data: ./redis_data
+
+networks:
+  cc-network:
+    driver: bridge
