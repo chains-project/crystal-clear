@@ -14,7 +14,6 @@ from schemas.info import (
     PermissionsInfoResponse,
 )
 from schemas.response import ErrorResponse
-from schemas.info import ScorecardRequest
 from services.info_service import (
     get_latest_block_number,
     get_deployment_data,
@@ -123,8 +122,8 @@ async def get_contract_info(
         verifiedAt=data["verifiedAt"],
     )
 
-@router.post(
-    "/reposcore",
+@router.get(
+    "/reposcore/{address}",
     status_code=status.HTTP_200_OK,
     response_model=ScorecardResponse,
     responses={
@@ -146,12 +145,14 @@ async def get_contract_info(
 )
 @cache(expire=settings.cache_ttl)
 async def get_scorecard_info(
-    request: ScorecardRequest,
+    address: str,
+    session: Session = Depends(get_session),
     ):
     """
-    Get scorecard data for a given repository.
+    Get scorecard data for a given smart contract address.
     """
-    scorecard_data = get_scorecard_data(request.org, request.repo)
+
+    scorecard_data = await get_scorecard_data(session, address)
 
     source = "public_api" if scorecard_data["source"] == "api" else "scorecard_docker"
     org_repo = scorecard_data["repo"]

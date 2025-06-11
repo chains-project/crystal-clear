@@ -165,11 +165,7 @@ async def calculate_contract_risk(address: str, session: Session) -> Dict[str, A
 
     try:
         logger.info("Fetching scorecard data.")
-        repo_data = await contract_service.get_contract_repository(address)
-        url = repo_data["repository"].url
-        url_elms = url.split("/")
-        org, repo = url_elms[-2], url_elms[-1]
-        scorecard_data = get_scorecard_data(org, repo)
+        scorecard_data = await get_scorecard_data(session, address)
         scorecard_score = scorecard_data["raw"]["score"]
         scorecard_score = scorecard_score / 10
     except Exception as e:
