@@ -9,7 +9,7 @@ class Settings(BaseSettings):
 
     # Cache Configuration
     cache_url: str
-    cache_ttl: int = 60 * 60 * 24 * 7  # 7 days for demo purposes
+    cache_ttl: int = 60
 
     # API Configuration
     api_host: str

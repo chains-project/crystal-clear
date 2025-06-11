@@ -18,6 +18,7 @@ class ContractDependenciesResponse(BaseModel):
     from_block: int
     to_block: int
     n_nodes: int
+    n_matching_transactions: int
     nodes: Dict[str, str]
     edges: List[Dict[str, Any]]
 
