@@ -33,11 +33,6 @@ class VerificationInfoResponse(BaseModel):
     )
     verifiedAt: str = Field(None, description="Verification date")
 
-class ScorecardRequest(BaseModel):
-    """Request model for scorecard data."""
-    org: str = Field(..., min_length=1, max_length=50, description="GitHub organization name")
-    repo: str = Field(..., min_length=1, max_length=100, description="GitHub repository name")
-
 
 class ScorecardResponse(BaseModel):
     repo_info: str
