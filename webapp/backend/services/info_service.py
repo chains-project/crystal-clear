@@ -1,3 +1,4 @@
+from fastapi import HTTPException
 from loguru import logger
 from web3 import Web3
 from typing import Dict, Optional
@@ -15,6 +16,8 @@ from core.permissions import get_permissions
 
 import crud.deployment
 from models.deployment import DeploymentCreate
+
+from services.contract_service import ContractService
 
 def get_latest_block_number() -> int:
     """
@@ -109,7 +112,7 @@ def get_verification_data(address: str) -> Optional[Dict[str, str]]:
         logger.error(f"Error fetching verification data: {e}")
         raise InternalServerError(f"Failed to get verification data: {str(e)}") from e
 
-def get_scorecard_data(org: str, repo: str) -> Optional[Dict]:
+async def get_scorecard_data(session: Session, address: str) -> Optional[Dict]:
     """
     Run OpenSSF Scorecard on the given GitHub repo.(We only support GitHub for now)
 
@@ -120,6 +123,28 @@ def get_scorecard_data(org: str, repo: str) -> Optional[Dict]:
         Scorecard JSON result
 
         """
+    try:
+        # check if address is valid for ethereum
+        if not Web3.is_address(address):
+            raise InputValidationError(f"Invalid Ethereum address: {address}")
+
+        contract_service = ContractService(session)
+        repo_data = await contract_service.get_contract_repository(address)
+        url = repo_data["repository"].url
+        url_elms = url.split("/")
+        org, repo = url_elms[-2], url_elms[-1]
+    except InputValidationError as e:
+        logger.error(f"Input validation error: {e}")
+        raise e
+    except NotFoundError as e:
+        logger.error(f"Repository not found: {e}")
+        raise NotFoundError(f"No repository information found for {address}") from e
+    except HTTPException as e:
+        logger.error(f"HTTP error: {e.detail}")
+        raise e
+    except Exception as e:
+        logger.error(f"Error fetching repository data: {e}")
+        raise InternalServerError(f"Failed to get repository data: {str(e)}") from e
 
     path = f"{org}/{repo}"
 
