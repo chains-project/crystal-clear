@@ -70,6 +70,7 @@ async def get_contract_dependencies(
         from_block=network["from_block"],
         to_block=network["to_block"],
         n_nodes=network["n_nodes"],
+        n_matching_transactions=network["n_matching_transactions"],
         nodes=network["nodes"],
         edges=network["edges"],
     )

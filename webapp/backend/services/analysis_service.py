@@ -4,7 +4,6 @@ import secrets
 from datetime import datetime
 
 from loguru import logger
-from scsc.supply_chain import SupplyChain
 
 from sqlmodel import Session
 
@@ -12,6 +11,7 @@ from core.config import settings
 from core.exceptions import InputValidationError, InternalServerError
 from core.metadata import get_labels
 from core.database import get_session
+from core.trace_collector import TraceCollector
 import crud.label
 from services.info_service import get_verification_data, get_proxy_data, get_permissions, get_scorecard_data
 from services.contract_service import ContractService
@@ -42,8 +42,8 @@ def analyze_contract_dependencies(
         logger.info(f"Analyzing contract {address}")
 
         _validate_block_range(from_block, to_block)
-        sc = SupplyChain(settings.eth_node_url, address)
-        network = sc.get_network(from_block, to_block)
+        collector = TraceCollector(settings.eth_node_url)
+        network = collector.get_network(address, from_block, to_block)
         network["nodes"] = _process_node_labels(session, network)
         network["edges"] = assess_edge_risk(network.get("edges", []))
         logger.info(f"Analysis completed for {address}")
