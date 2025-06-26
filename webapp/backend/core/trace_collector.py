@@ -96,18 +96,16 @@ class TraceCollector:
         return res
 
     def _extract_all_subcalls(
-        self, call: Dict[str, Any], calls: List[Dict[str, str]]
+        self, call: Dict[str, Any], calls: List[Dict[str, str]], caller: str
     ) -> None:
         """
         Recursively extracts all subcalls from a call.
         """
-        call = {"from": call["from"], "to": call["to"], "type": call["type"]}
+        call = {"from": caller, "to": call["to"], "type": call["type"]}
         if call not in calls:
-            calls.append(
-                {"from": call["from"], "to": call["to"], "type": call["type"]}
-            )
+            calls.append(call)
         for subcall in call.get("calls", []):
-            self._extract_all_subcalls(subcall, calls)
+            self._extract_all_subcalls(subcall, calls, call["to"])
 
     def _extract_calls(
         self,
@@ -123,9 +121,10 @@ class TraceCollector:
                 {"from": call["from"], "to": call["to"], "type": call["type"]}
             )
             for subcall in call.get("calls", []):
-                self._extract_all_subcalls(subcall, calls)
-        for subcall in call.get("calls", []):
-            self._extract_calls(subcall, contract_address, calls)
+                self._extract_all_subcalls(subcall, calls, call["to"])
+        else:
+            for subcall in call.get("calls", []):
+                self._extract_calls(subcall, contract_address, calls)
 
     def get_calls(
         self, tx_hashes: Set[str], contract_address: str
