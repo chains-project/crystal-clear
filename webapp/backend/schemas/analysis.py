@@ -10,6 +10,15 @@ class ContractDependenciesRequest(BaseModel):
     from_block: Optional[str] = Field(None, description="Start block")
     to_block: Optional[str] = Field(None, description="End block")
 
+class Edge(BaseModel):
+    source: str = Field(..., description="Source node address")
+    target: str = Field(..., description="Target node address")
+    types: Dict[str, int] = Field(
+            ...,
+            description="Types of calls between nodes with their counts. Keys: 'call', 'delegatecall', 'staticcall'"
+        )
+    depth: int = Field(..., description="Depth of the edge in the dependency graph")
+
 
 class ContractDependenciesResponse(BaseModel):
     """Response model for contract dependencies analysis."""
@@ -20,7 +29,10 @@ class ContractDependenciesResponse(BaseModel):
     n_nodes: int
     n_matching_transactions: int
     nodes: Dict[str, str]
-    edges: List[Dict[str, Any]]
+    edges: List[Edge] = Field(
+        ...,
+        description="List of edges in the dependency graph, each representing a call between contracts",
+    )
 
 
 class ContractRiskRequest(BaseModel):
