@@ -96,18 +96,22 @@ class TraceCollector:
         return res
 
     def _extract_all_subcalls(
-        self, call: Dict[str, Any], calls: List[Dict[str, str]]
+        self, call: Dict[str, Any], calls: List[Dict[str, str]], caller: str, depth: int = 0
     ) -> None:
         """
         Recursively extracts all subcalls from a call.
         """
-        call = {"from": call["from"], "to": call["to"], "type": call["type"]}
-        if call not in calls:
-            calls.append(
-                {"from": call["from"], "to": call["to"], "type": call["type"]}
-            )
+        depth += 1
+        key = (caller, call["to"])
+        if key not in calls:
+            calls[key] = {"source": caller, "target": call["to"], "types": {}, "depth": depth }
+        if call["type"] not in calls[key]["types"]:
+            calls[key]["types"][call["type"]] = 0
+        calls[key]["types"][call["type"]] += 1
+        calls[key]["depth"] = min(calls[key]["depth"], depth)
+
         for subcall in call.get("calls", []):
-            self._extract_all_subcalls(subcall, calls)
+            self._extract_all_subcalls(subcall, calls, call["to"], depth)
 
     def _extract_calls(
         self,
@@ -118,14 +122,12 @@ class TraceCollector:
         """
         Extracts calls from a call and its subcalls.
         """
-        if call["from"].lower() == contract_address.lower():
-            calls.append(
-                {"from": call["from"], "to": call["to"], "type": call["type"]}
-            )
+        if call["to"].lower() == contract_address.lower():
             for subcall in call.get("calls", []):
-                self._extract_all_subcalls(subcall, calls)
-        for subcall in call.get("calls", []):
-            self._extract_calls(subcall, contract_address, calls)
+                self._extract_all_subcalls(subcall, calls, call["to"], 0)
+        else:
+            for subcall in call.get("calls", []):
+                self._extract_calls(subcall, contract_address, calls)
 
     def get_calls(
         self, tx_hashes: Set[str], contract_address: str
@@ -134,13 +136,13 @@ class TraceCollector:
         Gets calls for a given set of transaction hashes and contract address.
         """
         self.logger.info(f"Getting calls for contract {contract_address}.")
-        calls = []
+        calls = {}
         for h in tx_hashes:
             res = self._get_calls_from_tx(h)
             if res:
                 self._extract_calls(res, contract_address, calls)
         self.logger.info(f"Extracted {len(calls)} calls.")
-        return calls
+        return calls.values()
 
     def _filter_contract_calls(
         self, calls: List[Dict[str, str]], to_block
@@ -153,30 +155,6 @@ class TraceCollector:
             for c in calls
             if self._validate_contract(c["target"], to_block)
         ]
-    def aggregate_calls(self, calls: List[Dict[str, str]]) -> List[Dict[str, str]]:
-        """
-        Aggregates calls by 'from' and 'to' addresses, counting occurrences of each type.
-        """
-        self.logger.info("Aggregating calls.")
-        aggregated_calls = {}
-        for call in calls:
-            key = (call["from"], call["to"])
-            if key not in aggregated_calls:
-                aggregated_calls[key] = {}
-            if call["type"] not in aggregated_calls[key]:
-                aggregated_calls[key][call["type"]] = 0
-            aggregated_calls[key][call["type"]] += 1
-        aggregated_list = []
-        for (from_addr, to_addr), data in aggregated_calls.items():
-            aggregated_list.append(
-                {
-                    "source": from_addr,
-                    "target": to_addr,
-                    "types": data,
-                }
-            )
-        self.logger.info(f"Aggregated {len(aggregated_list)} calls.")
-        return aggregated_list
 
     def get_calls_from(
         self, from_block: str | int, to_block: str | int, contract_address: str
@@ -198,8 +176,7 @@ class TraceCollector:
             from_block_hex, to_block_hex, contract_address
         )
         calls = self.get_calls(tx_hashes, contract_address)
-        aggregated_calls = self.aggregate_calls(calls)
-        filtered_calls = self._filter_contract_calls(aggregated_calls, to_block_hex)
+        filtered_calls = self._filter_contract_calls(calls, to_block_hex)
         
         edges = filtered_calls
         nodes: Set[str] = set()
