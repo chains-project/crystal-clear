@@ -100,7 +100,9 @@ def get_verification_data(address: str) -> Optional[Dict[str, str]]:
                 etherscan_data = response.json()["result"]
                 if len(etherscan_data) > 0 and len(etherscan_data[0].get("SourceCode")) > 0:
                     return {"address": address, "match": "match", "verifiedAt": "na"}
-            raise NotFoundError(f"No verification information found for {address}")
+                
+                return {"address": address, "match": "not_match", "verifiedAt": "na"}
+                
         return verification_info
     except (InputValidationError, NotFoundError) as e:
         logger.error(f"Error: {e}")

@@ -136,7 +136,7 @@ async def calculate_contract_risk(address: str, session: Session) -> Dict[str, A
     try:
         logger.info("Fetching verification data.")
         verification_data = get_verification_data(address)
-        verification_dic = {"exact_match": 1, "match": 0.9, "": 0}
+        verification_dic = {"exact_match": 1, "match": 0.9, "not_match": 0}
         verification_score = verification_dic.get(verification_data.get("match", ""), 0)
     except Exception as e:
         logger.error(f"Verification data fetch error: {e}")
