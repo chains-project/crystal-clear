@@ -28,7 +28,7 @@ class DeploymentInfoResponse(BaseModel):
 class VerificationInfoResponse(BaseModel):
     """Response model for contract verification information."""
     address: str = Field(..., description="Contract address")
-    verification: Literal["verified", "fully-verified"] = Field(
+    verification: Literal["verified", "fully-verified", "not-verified"] = Field(
         ..., description="Verification status"
     )
     verifiedAt: str = Field(None, description="Verification date")

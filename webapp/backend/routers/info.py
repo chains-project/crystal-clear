@@ -114,7 +114,7 @@ async def get_contract_info(
 
     data = get_verification_data(address)
 
-    mapping = {"match": "verified", "exact_match": "fully-verified"}
+    mapping = {"match": "verified", "exact_match": "fully-verified", "not_match": "not-verified"}
     
     return VerificationInfoResponse(
         address=data["address"],
