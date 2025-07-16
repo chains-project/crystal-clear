@@ -35,4 +35,4 @@ COPY . .
 EXPOSE ${API_PORT}
 
 # Start the application
-CMD uvicorn main:app --host ${API_HOST} --port ${API_PORT}
+CMD uvicorn src.api.main:app --host ${API_HOST} --port ${API_PORT}
