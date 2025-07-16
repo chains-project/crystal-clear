@@ -1,4 +1,6 @@
 from pydantic_settings import BaseSettings
+from pydantic import ConfigDict
+
 
 class Settings(BaseSettings):
     # Ethereum Node Configuration
@@ -18,7 +20,7 @@ class Settings(BaseSettings):
     # Request Timeout
     request_timeout: int = 60 * 2  # seconds
 
-    # maximum block range for analysis
+    # Maximum block range for analysis
     MAX_BLOCK_RANGE: int = 7000
 
     # Default block range for analysis
@@ -36,11 +38,10 @@ class Settings(BaseSettings):
     # Etherscan API Key
     etherscan_api_key: str
 
-    class Config:
-        env_file = ".env"
-        env_file_encoding = "utf-8"
-        # Map environment variables to class attributes
-        fields = {
+    model_config = ConfigDict(
+        case_sensitive=False,
+        # NO env_file loaded — read only from actual environment variables
+        fields={
             "eth_node_url": "ETH_NODE_URL",
             "database_url": "DATABASE_URL",
             "cache_url": "CACHE_URL",
@@ -49,8 +50,9 @@ class Settings(BaseSettings):
             "log_level": "LOG_LEVEL",
             "allium_api_key": "ALLIUM_API_KEY",
             "github_token": "GITHUB_TOKEN",
-            "ehterscan_api_key": "ETHERSCAN_API_KEY"
+            "etherscan_api_key": "ETHERSCAN_API_KEY",
         }
+    )
 
 
 settings = Settings()
